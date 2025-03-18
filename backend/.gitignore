@@ -1,0 +1,9 @@
+# Ignore the virtual environment
+venv/
+
+# Ignore database files
+*.sqlite3
+
+# Ignore compiled Python files
+__pycache__/
+*.pyc
