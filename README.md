@@ -16,6 +16,11 @@ A production-focused cafe discovery app with map-first browsing, reviews, and mo
 - Admin delete
 - Auth
 
+## Authentication
+
+MatchaDex uses Google OAuth via Supabase.
+No email/password accounts supported.
+
 ## Tech Stack
 
 - Next.js App Router

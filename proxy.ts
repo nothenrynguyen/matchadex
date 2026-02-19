@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
   const response = NextResponse.next({
     request,
   });
@@ -27,7 +28,14 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (pathname.startsWith("/cafes") && !user) {
+    const loginUrl = new URL("/auth", request.url);
+    return NextResponse.redirect(loginUrl);
+  }
 
   return response;
 }
