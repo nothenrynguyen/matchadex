@@ -1,36 +1,190 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MatchaDex
 
-## Getting Started
+MatchaDex is a full-stack Next.js App Router app for discovering, reviewing, and ranking matcha cafes.
 
-First, run the development server:
+## Stack
+
+- Next.js App Router
+- TypeScript
+- Prisma ORM
+- Supabase Postgres
+- Supabase Auth
+- Supabase Storage
+- Tailwind CSS
+
+## Features
+
+- Email/password auth (Supabase Auth)
+- Cafe discovery with city filter, search, sort, pagination
+- Map/list view toggle
+- Cafe detail pages with reviews and favorites
+- Review create/update (one review per user per cafe)
+- Review owner-only edit/delete
+- Admin review deletion via allowlist emails
+- User profile with reviews + favorites
+- Leaderboard page (top cafes by rating)
+- Cafe photo upload/listing via Supabase Storage
+- Unit tests for core API routes
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and set real values.
+
+Required variables:
+
+- `DATABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `adminEmails`
+- `SUPABASE_PHOTOS_BUCKET` (default: `cafe-photos`)
+- `MONITORING_WEBHOOK_URL` (optional)
+
+## Local Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Generate Prisma client:
+
+```bash
+npx prisma generate
+```
+
+3. Apply local migrations (if needed):
+
+```bash
+npx prisma migrate dev
+```
+
+4. Seed data:
+
+```bash
+npm run db:seed
+```
+
+5. Run the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev` - start dev server
+- `npm run build` - production build (webpack mode)
+- `npm run start` - run production server
+- `npm run lint` - run ESLint
+- `npm run test` - run Vitest
+- `npm run db:migrate:deploy` - apply production migrations
+- `npm run db:seed` - run Prisma seed script
 
-## Learn More
+## API Routes
 
-To learn more about Next.js, take a look at the following resources:
+### Auth
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `GET /api/auth/me`
+  - Returns current session user info.
+- `POST /api/auth/logout`
+  - Signs out current user.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Cafes
 
-## Deploy on Vercel
+- `GET /api/cafes`
+  - Query params:
+    - `city` (optional)
+    - `page` (optional, default `1`)
+    - `pageSize` (optional, default `6`, max `50`)
+    - `sort` (`rating_desc`, `rating_asc`, `name_asc`, `name_desc`)
+  - Returns paginated cafes with average ratings and `isFavorited`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `GET /api/cafes/search`
+  - Query params:
+    - `q` (required)
+    - `city`, `page`, `pageSize`, `sort` (optional)
+  - Returns paginated search results with average ratings.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `GET /api/cafes/[id]`
+  - Returns cafe detail, reviews, rating summary, and viewer metadata.
+
+- `GET /api/cafes/[id]/favorite`
+  - Returns whether current user has favorited this cafe.
+
+- `POST /api/cafes/[id]/favorite`
+  - Requires auth.
+  - Creates favorite for current user.
+
+- `DELETE /api/cafes/[id]/favorite`
+  - Requires auth.
+  - Removes favorite for current user.
+
+- `GET /api/cafes/[id]/photos`
+  - Returns public photo list from Supabase Storage bucket.
+
+- `POST /api/cafes/[id]/photos`
+  - Requires auth.
+  - Uploads image file (max 5MB).
+
+### Reviews
+
+- `POST /api/reviews`
+  - Requires auth.
+  - Creates/updates current user review for a cafe.
+
+- `DELETE /api/reviews/[id]`
+  - Requires auth.
+  - Deletes review only if current user owns it.
+
+- `DELETE /api/admin/reviews/[id]`
+  - Requires auth.
+  - Requires email in `adminEmails` allowlist.
+
+### Users
+
+- `GET /api/users/[id]`
+  - Returns profile data including reviews and favorites.
+
+## Production Deployment (Vercel + Supabase)
+
+1. Ensure environment variables are set in Vercel project settings.
+2. Ensure Supabase Storage bucket exists (`cafe-photos`) and permissions are configured.
+3. Deploy from `main` branch.
+4. Run production migrations:
+
+```bash
+npm run db:migrate:deploy
+```
+
+5. Optional production seed:
+
+```bash
+npm run db:seed
+```
+
+## Demo Account Instructions
+
+Use your own Supabase Auth user as demo, or create a dedicated demo account:
+
+1. Open `/auth`.
+2. Sign up with demo email and password.
+3. Add sample reviews/favorites/photos.
+4. Share this account for demo sessions.
+
+Recommended:
+
+- Keep demo user in `adminEmails` only if admin deletion is needed during demos.
+- Rotate demo password periodically.
+
+## Testing Status
+
+Current baseline checks:
+
+- `npm run build` passes
+- `npm run lint` passes
+- `npm run test` passes
+- `npm run db:seed` executes successfully
