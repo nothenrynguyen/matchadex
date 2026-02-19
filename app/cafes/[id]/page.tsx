@@ -94,6 +94,7 @@ export default function CafeDetailPage() {
     message: string;
     tone: "success" | "error";
   } | null>(null);
+  const [detailReloadCount, setDetailReloadCount] = useState(0);
   const [photos, setPhotos] = useState<CafePhoto[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -151,7 +152,7 @@ export default function CafeDetailPage() {
     return () => {
       controller.abort();
     };
-  }, [cafeId]);
+  }, [cafeId, detailReloadCount]);
 
   useEffect(() => {
     if (!cafeId) {
@@ -400,6 +401,13 @@ export default function CafeDetailPage() {
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
           {errorMessage}
         </div>
+        <button
+          type="button"
+          onClick={() => setDetailReloadCount((currentCount) => currentCount + 1)}
+          className="mt-4 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+        >
+          Retry
+        </button>
         <Link href="/cafes" className="mt-4 inline-block text-sm font-medium text-emerald-700">
           Back to cafes
         </Link>

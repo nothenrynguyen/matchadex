@@ -68,6 +68,14 @@ npx prisma migrate dev
 npm run db:seed
 ```
 
+To reseed safely after updating seed data, rerun:
+
+```bash
+npm run db:seed
+```
+
+The seed uses `upsert` on `googlePlaceId`, so reruns update existing rows instead of duplicating cafes.
+
 5. Run the app:
 
 ```bash
@@ -87,6 +95,15 @@ MAPBOX_PUBLIC_TOKEN=pk.your_public_token
 ```
 
 4. Restart the Next.js server after updating env vars.
+
+## Map UX Behavior
+
+- `/cafes` uses one shared map on the right and a scrollable cafe list on the left.
+- The list supports search, metro filter, and sort.
+- Clicking a cafe in the list selects it, highlights its marker, and recenters the map.
+- Clicking a marker selects the cafe and scrolls the left list to that cafe card.
+- Marker hover shows a small cafe-name tooltip.
+- If the current filter has no mappable cafes, the map shows a friendly empty message.
 
 ## Scripts
 
@@ -185,6 +202,30 @@ npm run db:migrate:deploy
 ```bash
 npm run db:seed
 ```
+
+## Production Checklist
+
+- `npm run build` passes in CI and local.
+- `npm run lint` passes with no errors.
+- `npm run test` passes.
+- Required env vars are set in Vercel:
+  `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAILS`, `MAPBOX_PUBLIC_TOKEN`,
+  `SUPABASE_PHOTOS_BUCKET`, `MONITORING_WEBHOOK_URL` (optional).
+- Run migrations safely before serving new code:
+
+```bash
+npm run db:migrate:deploy
+```
+
+- Seed is rerunnable and safe because cafes are upserted by `googlePlaceId`:
+
+```bash
+npm run db:seed
+```
+
+- Smoke test key routes after deploy:
+  `/cafes`, `/cafes/<id>`, `/users/<id>`, `/api/cafes`, `/api/health`, `/api/test-db`.
 
 ## Demo Account Instructions
 

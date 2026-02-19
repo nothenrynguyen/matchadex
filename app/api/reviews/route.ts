@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/monitoring";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 type CreateReviewBody = {
   userName?: string;
@@ -23,6 +24,21 @@ function toAverage(value: number | null) {
 
 export async function POST(request: NextRequest) {
   try {
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const clientIp = forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+    const rateLimitResult = enforceRateLimit({
+      key: `reviews:post:${clientIp}`,
+      maxRequests: 30,
+      windowMs: 60_000,
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "too many requests, please try again shortly" },
+        { status: 429 },
+      );
+    }
+
     const body = (await request.json()) as CreateReviewBody;
     const userName = body.userName?.trim();
     const user = await getCurrentPrismaUser({

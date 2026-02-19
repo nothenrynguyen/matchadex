@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logError, logInfo } from "@/lib/monitoring";
 import { getCurrentAuthUser } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 function getAdminEmails() {
   return (process.env.ADMIN_EMAILS ?? "")
@@ -12,10 +13,25 @@ function getAdminEmails() {
 }
 
 export async function DELETE(
-  _: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const clientIp = forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+    const rateLimitResult = enforceRateLimit({
+      key: `admin:delete-review:${clientIp}`,
+      maxRequests: 10,
+      windowMs: 60_000,
+    });
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "too many requests, please try again shortly" },
+        { status: 429 },
+      );
+    }
+
     // check if admin allowlist is configured
     const adminEmails = getAdminEmails();
 

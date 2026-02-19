@@ -72,6 +72,7 @@ export default function UserProfilePage() {
     message: string;
     tone: "success" | "error";
   } | null>(null);
+  const [profileReloadCount, setProfileReloadCount] = useState(0);
 
   useEffect(() => {
     if (!userId) {
@@ -114,7 +115,7 @@ export default function UserProfilePage() {
     return () => {
       controller.abort();
     };
-  }, [userId]);
+  }, [userId, profileReloadCount]);
 
   useEffect(() => {
     if (!toastState) {
@@ -283,6 +284,13 @@ export default function UserProfilePage() {
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {errorMessage}
         </div>
+        <button
+          type="button"
+          onClick={() => setProfileReloadCount((currentCount) => currentCount + 1)}
+          className="mt-3 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+        >
+          Retry
+        </button>
       </main>
     );
   }

@@ -52,9 +52,17 @@ type MapboxMarker = {
   remove: () => void;
 };
 
+type MapboxPopup = {
+  setLngLat: (lngLat: [number, number]) => MapboxPopup;
+  setHTML: (html: string) => MapboxPopup;
+  addTo: (map: MapboxMap) => MapboxPopup;
+  remove: () => void;
+};
+
 type MapboxInstance = {
   Map: new (options: Record<string, unknown>) => MapboxMap;
   Marker: new (options: { element: HTMLElement }) => MapboxMarker;
+  Popup: new (options?: { closeButton?: boolean; closeOnClick?: boolean; offset?: number }) => MapboxPopup;
   LngLatBounds: new () => { extend: (point: [number, number]) => unknown };
   accessToken: string;
 };
@@ -62,6 +70,7 @@ type MapboxInstance = {
 type MarkerState = {
   marker: MapboxMarker;
   element: HTMLButtonElement;
+  popup: MapboxPopup;
 };
 
 declare global {
@@ -146,8 +155,10 @@ async function loadMapboxAssets() {
 function CafesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const cafeItemRefs = useRef<Map<string, HTMLElement>>(new Map());
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
+  const selectedCafeIdRef = useRef<string | null>(null);
   const markersRef = useRef<Map<string, MarkerState>>(new Map());
 
   const [city, setCity] = useState("All");
@@ -160,6 +171,7 @@ function CafesPageContent() {
   const [isMapLoading, setIsMapLoading] = useState(true);
   const [mapError, setMapError] = useState<string | null>(null);
   const [selectedCafeId, setSelectedCafeId] = useState<string | null>(null);
+  const [listReloadCount, setListReloadCount] = useState(0);
   const [sessionUserEmail, setSessionUserEmail] = useState<string | null>(null);
   const [toastState, setToastState] = useState<{
     message: string;
@@ -279,7 +291,7 @@ function CafesPageContent() {
     return () => {
       controller.abort();
     };
-  }, [city, normalizedQuery, sort, page]);
+  }, [city, normalizedQuery, sort, page, listReloadCount]);
 
   useEffect(() => {
     if (cafes.length === 0) {
@@ -370,6 +382,7 @@ function CafesPageContent() {
 
     markersRef.current.forEach((markerState) => {
       markerState.marker.remove();
+      markerState.popup.remove();
     });
     markersRef.current.clear();
 
@@ -377,23 +390,50 @@ function CafesPageContent() {
       if (cafe.latitude === null || cafe.longitude === null) {
         return;
       }
+      const cafeLatitude = cafe.latitude;
+      const cafeLongitude = cafe.longitude;
 
       const markerElement = document.createElement("button");
       markerElement.type = "button";
       markerElement.title = cafe.name;
-      setMarkerActiveStyle(markerElement, cafe.id === selectedCafeId);
+      setMarkerActiveStyle(markerElement, cafe.id === selectedCafeIdRef.current);
 
       markerElement.addEventListener("click", () => {
         setSelectedCafeId(cafe.id);
+
+        if (mapRef.current) {
+          mapRef.current.flyTo({
+            center: [cafeLongitude, cafeLatitude],
+            zoom: 13,
+            essential: true,
+          });
+        }
+      });
+
+      const popup = new mapbox.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 16,
+      }).setHTML(
+        `<div style="font-size:12px;font-weight:600;color:#20302a;padding:2px 4px;">${cafe.name}</div>`,
+      );
+
+      markerElement.addEventListener("mouseenter", () => {
+        popup.setLngLat([cafeLongitude, cafeLatitude]).addTo(map);
+      });
+
+      markerElement.addEventListener("mouseleave", () => {
+        popup.remove();
       });
 
       const marker = new mapbox.Marker({ element: markerElement })
-        .setLngLat([cafe.longitude, cafe.latitude])
+        .setLngLat([cafeLongitude, cafeLatitude])
         .addTo(map);
 
       markersRef.current.set(cafe.id, {
         marker,
         element: markerElement,
+        popup,
       });
     });
 
@@ -412,19 +452,38 @@ function CafesPageContent() {
     if (!isMapLoading) {
       setMapError(cafesWithCoordinates.length === 0 ? "No mapped cafes for this metro." : null);
     }
-  }, [cafesWithCoordinates, isMapLoading, selectedCafeId]);
+  }, [cafesWithCoordinates, isMapLoading]);
 
   useEffect(() => {
+    selectedCafeIdRef.current = selectedCafeId;
     markersRef.current.forEach((markerState, cafeId) => {
       setMarkerActiveStyle(markerState.element, cafeId === selectedCafeId);
     });
   }, [selectedCafeId]);
 
   useEffect(() => {
+    if (!selectedCafeId) {
+      return;
+    }
+
+    const selectedCafeElement = cafeItemRefs.current.get(selectedCafeId);
+
+    if (selectedCafeElement) {
+      selectedCafeElement.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    }
+  }, [selectedCafeId]);
+
+  useEffect(() => {
     const markerMap = markersRef.current;
 
     return () => {
-      markerMap.forEach((markerState) => markerState.marker.remove());
+      markerMap.forEach((markerState) => {
+        markerState.marker.remove();
+        markerState.popup.remove();
+      });
       markerMap.clear();
 
       if (mapRef.current) {
@@ -486,9 +545,9 @@ function CafesPageContent() {
   }
 
   return (
-    <main className="mx-auto h-[calc(100vh-9.5rem)] max-w-[1500px] overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
-      <section className="grid h-full grid-cols-1 gap-4 lg:grid-cols-10">
-        <aside className="flex h-full flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-[#fffdf6] lg:col-span-3">
+    <main className="mx-auto max-w-[1500px] overflow-hidden px-4 py-4 sm:px-6 lg:h-[calc(100vh-9.5rem)] lg:px-8">
+      <section className="grid gap-4 lg:h-full lg:grid-cols-10">
+        <aside className="flex h-[55vh] flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-[#fffdf6] lg:col-span-3 lg:h-full">
           <div className="border-b border-emerald-100 bg-[#f3f1e7] p-4">
             <div className="flex items-center justify-between gap-2">
               <h1 className="text-xl font-semibold text-zinc-900">MatchaDex Cafes</h1>
@@ -556,7 +615,14 @@ function CafesPageContent() {
 
             {!isLoading && listError ? (
               <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                {listError}
+                <p>{listError}</p>
+                <button
+                  type="button"
+                  onClick={() => setListReloadCount((currentCount) => currentCount + 1)}
+                  className="mt-3 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                >
+                  Retry
+                </button>
               </div>
             ) : null}
 
@@ -574,6 +640,13 @@ function CafesPageContent() {
                   return (
                     <article
                       key={cafe.id}
+                      ref={(element) => {
+                        if (element) {
+                          cafeItemRefs.current.set(cafe.id, element);
+                        } else {
+                          cafeItemRefs.current.delete(cafe.id);
+                        }
+                      }}
                       className={`cursor-pointer rounded-xl border p-4 transition ${
                         isSelected
                           ? "border-emerald-500 bg-emerald-50"
@@ -642,7 +715,7 @@ function CafesPageContent() {
           </div>
         </aside>
 
-        <section className="relative h-full overflow-hidden rounded-2xl border border-emerald-100 bg-white lg:col-span-7">
+        <section className="relative h-[45vh] overflow-hidden rounded-2xl border border-emerald-100 bg-white lg:col-span-7 lg:h-full">
           <div ref={mapContainerRef} className="h-full w-full" />
 
           {isMapLoading ? (
@@ -656,7 +729,13 @@ function CafesPageContent() {
           ) : null}
 
           {mapError ? (
-            <div className="absolute left-3 top-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <div
+              className={`absolute left-3 top-3 rounded-lg px-3 py-2 text-xs ${
+                mapError === "No mapped cafes for this metro."
+                  ? "border border-zinc-200 bg-white text-zinc-700"
+                  : "border border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
               {mapError}
             </div>
           ) : null}
