@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import AuthNav from "./components-auth-nav";
+import Navbar from "./components/Navbar";
 import MetroSelector from "./components/metro-selector";
 import Footer from "./components/footer";
-import { getCurrentAuthUser, getCurrentPrismaUser } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,16 +11,11 @@ export const metadata: Metadata = {
   description: "Discover and review matcha cafes",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const authUser = await getCurrentAuthUser();
-  const prismaUser = authUser
-    ? await getCurrentPrismaUser({ createIfMissing: true })
-    : null;
-
   return (
     <html lang="en">
       <body className="antialiased">
@@ -40,10 +34,7 @@ export default async function RootLayout({
               <Suspense fallback={null}>
                 <MetroSelector />
               </Suspense>
-              <AuthNav
-                userEmail={authUser?.email ?? null}
-                prismaUserId={prismaUser?.id ?? null}
-              />
+              <Navbar />
             </div>
           </div>
         </header>
