@@ -18,8 +18,12 @@ export default function AuthCallbackPage() {
           throw error;
         }
 
+        if (process.env.NODE_ENV === "development") {
+          console.log("session", data.session);
+        }
+
         if (!data.session?.user) {
-          setErrorMessage("Login failed. Please try again.");
+          setErrorMessage("Login failed: no active session found. Please try again.");
           return;
         }
 

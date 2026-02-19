@@ -28,11 +28,15 @@ export async function proxy(request: NextRequest) {
     },
   });
 
+  // Read session from cookies in middleware to avoid auth-loop redirects.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (pathname.startsWith("/cafes") && !user) {
+  const isProtectedPath = pathname.startsWith("/cafes");
+  const isCallbackPath = pathname.startsWith("/auth/callback");
+
+  if (isProtectedPath && !isCallbackPath && !session) {
     const loginUrl = new URL("/auth", request.url);
     return NextResponse.redirect(loginUrl);
   }
