@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String?
+  email     String   @unique
+  createdAt DateTime @default(now())
+  reviews   Review[]
+}
+
+model Cafe {
+  id            String   @id @default(uuid())
+  name          String
+  address       String?
+  city          String
+  googlePlaceId String   @unique
+  createdAt     DateTime @default(now())
+  reviews       Review[]
+}
+
+model Review {
+  id              String   @id @default(uuid())
+  userId          String
+  cafeId          String
+  tasteRating     Int
+  aestheticRating Int
+  studyRating     Int
+  priceEstimate   Float?
+  textComment     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  cafe Cafe @relation(fields: [cafeId], references: [id])
+
+  // one review per user per cafe
+  @@unique([userId, cafeId])
+
+}
