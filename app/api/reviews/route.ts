@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logError } from "@/lib/monitoring";
+import { getCurrentPrismaUser } from "@/lib/auth";
 
 type CreateReviewBody = {
-  userEmail?: string;
   userName?: string;
   cafeId?: string;
   tasteRating?: number;
@@ -11,10 +12,6 @@ type CreateReviewBody = {
   priceEstimate?: number | null;
   textComment?: string | null;
 };
-
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
 
 function isValidRating(value: unknown) {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 5;
@@ -27,15 +24,18 @@ function toAverage(value: number | null) {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as CreateReviewBody;
+    const userName = body.userName?.trim();
+    const user = await getCurrentPrismaUser({
+      createIfMissing: true,
+      userName,
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
 
     // validate required primitive fields
-    const userEmail = body.userEmail?.trim().toLowerCase();
-    const userName = body.userName?.trim();
     const cafeId = body.cafeId?.trim();
-
-    if (!userEmail || !isValidEmail(userEmail)) {
-      return NextResponse.json({ error: "valid userEmail is required" }, { status: 400 });
-    }
 
     if (!cafeId) {
       return NextResponse.json({ error: "cafeId is required" }, { status: 400 });
@@ -76,15 +76,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "cafe not found" }, { status: 404 });
     }
 
-    // create or load user account from email
-    const user = await prisma.user.upsert({
-      where: { email: userEmail },
-      update: userName ? { name: userName } : {},
-      create: {
-        email: userEmail,
-        name: userName,
-      },
-    });
+    const tasteRating = body.tasteRating as number;
+    const aestheticRating = body.aestheticRating as number;
+    const studyRating = body.studyRating as number;
 
     // enforce one review per user per cafe with upsert
     const review = await prisma.review.upsert({
@@ -95,18 +89,18 @@ export async function POST(request: NextRequest) {
         },
       },
       update: {
-        tasteRating: body.tasteRating,
-        aestheticRating: body.aestheticRating,
-        studyRating: body.studyRating,
+        tasteRating,
+        aestheticRating,
+        studyRating,
         priceEstimate: body.priceEstimate ?? null,
         textComment: body.textComment?.trim() || null,
       },
       create: {
         userId: user.id,
         cafeId,
-        tasteRating: body.tasteRating,
-        aestheticRating: body.aestheticRating,
-        studyRating: body.studyRating,
+        tasteRating,
+        aestheticRating,
+        studyRating,
         priceEstimate: body.priceEstimate ?? null,
         textComment: body.textComment?.trim() || null,
       },
@@ -147,7 +141,10 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("POST /api/reviews failed", error);
+    await logError("POST /api/reviews failed", error, {
+      route: "/api/reviews",
+      method: "POST",
+    });
     return NextResponse.json(
       { error: "failed to save review" },
       { status: 500 },

@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { logError } from "@/lib/monitoring";
+import { getCurrentAuthUser } from "@/lib/auth";
 
 function getAdminEmails() {
-  return (process.env.ADMIN_EMAILS ?? "")
+  return (process.env.adminEmails ?? process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -24,11 +26,12 @@ export async function DELETE(
       );
     }
 
-    // read caller identity from request header
-    const requesterEmail = request.headers.get("x-user-email")?.trim().toLowerCase();
+    // read caller identity from authenticated Supabase session
+    const authUser = await getCurrentAuthUser();
+    const requesterEmail = authUser?.email?.trim().toLowerCase();
 
     if (!requesterEmail) {
-      return NextResponse.json({ error: "x-user-email header is required" }, { status: 401 });
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
     if (!adminEmails.includes(requesterEmail)) {
@@ -55,7 +58,10 @@ export async function DELETE(
       return NextResponse.json({ error: "review not found" }, { status: 404 });
     }
 
-    console.error("DELETE /api/admin/reviews/:id failed", error);
+    await logError("DELETE /api/admin/reviews/:id failed", error, {
+      route: "/api/admin/reviews/[id]",
+      method: "DELETE",
+    });
     return NextResponse.json(
       { error: "failed to delete review" },
       { status: 500 },
