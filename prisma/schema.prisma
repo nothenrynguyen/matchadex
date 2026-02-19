@@ -7,21 +7,23 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String?
-  email     String   @unique
-  createdAt DateTime @default(now())
-  reviews   Review[]
+  id         String     @id @default(uuid())
+  name       String?
+  email      String     @unique
+  createdAt  DateTime   @default(now())
+  reviews    Review[]
+  favorites  Favorite[]
 }
 
 model Cafe {
-  id            String   @id @default(uuid())
+  id            String     @id @default(uuid())
   name          String
   address       String?
   city          String
-  googlePlaceId String   @unique
-  createdAt     DateTime @default(now())
+  googlePlaceId String     @unique
+  createdAt     DateTime   @default(now())
   reviews       Review[]
+  favorites     Favorite[]
 }
 
 model Review {
@@ -42,4 +44,17 @@ model Review {
   // one review per user per cafe
   @@unique([userId, cafeId])
 
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  cafeId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  cafe Cafe @relation(fields: [cafeId], references: [id])
+
+  // one favorite per user per cafe
+  @@unique([userId, cafeId])
 }

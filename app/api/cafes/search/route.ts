@@ -1,28 +1,90 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logError } from "@/lib/monitoring";
+import { getCurrentPrismaUser } from "@/lib/auth";
+
+type SortOption = "rating_desc" | "rating_asc" | "name_asc" | "name_desc";
 
 function toAverage(value: number | null) {
   return value === null ? null : Number(value.toFixed(2));
 }
 
+function parsePositiveInt(value: string | null, fallbackValue: number) {
+  if (!value) {
+    return fallbackValue;
+  }
+
+  const parsedValue = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    return null;
+  }
+
+  return parsedValue;
+}
+
+function parseSort(value: string | null): SortOption {
+  const sortOption = value?.toLowerCase();
+
+  if (
+    sortOption === "rating_desc" ||
+    sortOption === "rating_asc" ||
+    sortOption === "name_asc" ||
+    sortOption === "name_desc"
+  ) {
+    return sortOption;
+  }
+
+  return "rating_desc";
+}
+
+function getSortableRating(value: number | null, sortOption: SortOption) {
+  if (value === null) {
+    return sortOption === "rating_asc" ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+  }
+
+  return value;
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // validate search query for cafe names
+    const prismaUser = await getCurrentPrismaUser();
+
+    // validate query and parse filtering parameters
     const queryParam = request.nextUrl.searchParams.get("q")?.trim();
+    const cityParam = request.nextUrl.searchParams.get("city")?.trim();
+    const page = parsePositiveInt(request.nextUrl.searchParams.get("page"), 1);
+    const pageSize = parsePositiveInt(request.nextUrl.searchParams.get("pageSize"), 6);
+    const sort = parseSort(request.nextUrl.searchParams.get("sort"));
 
     if (!queryParam) {
       return NextResponse.json({ error: "q is required" }, { status: 400 });
     }
 
-    // search cafe names case-insensitively
+    if (cityParam !== undefined && cityParam !== null && cityParam.length === 0) {
+      return NextResponse.json({ error: "city must not be empty" }, { status: 400 });
+    }
+
+    if (page === null) {
+      return NextResponse.json({ error: "page must be a positive integer" }, { status: 400 });
+    }
+
+    if (pageSize === null || pageSize > 50) {
+      return NextResponse.json(
+        { error: "pageSize must be a positive integer up to 50" },
+        { status: 400 },
+      );
+    }
+
+    // search cafe names case-insensitively with optional city filter
     const cafes = await prisma.cafe.findMany({
       where: {
         name: {
           contains: queryParam,
           mode: "insensitive",
         },
+        ...(cityParam ? { city: cityParam } : {}),
       },
-      orderBy: { name: "asc" },
     });
 
     const cafeIds = cafes.map((cafe) => cafe.id);
@@ -65,7 +127,7 @@ export async function GET(request: NextRequest) {
       ]),
     );
 
-    // return cafes with averages to power UI cards
+    // build response shape with averages
     const cafesWithAverages = cafes.map((cafe) => ({
       ...cafe,
       averageRatings: ratingMap.get(cafe.id) ?? {
@@ -77,9 +139,64 @@ export async function GET(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json({ cafes: cafesWithAverages });
+    cafesWithAverages.sort((leftCafe, rightCafe) => {
+      if (sort === "rating_desc" || sort === "rating_asc") {
+        const leftRating = getSortableRating(leftCafe.averageRatings.overallRating, sort);
+        const rightRating = getSortableRating(rightCafe.averageRatings.overallRating, sort);
+
+        if (leftRating !== rightRating) {
+          return sort === "rating_desc" ? rightRating - leftRating : leftRating - rightRating;
+        }
+      }
+
+      if (sort === "name_desc") {
+        return rightCafe.name.localeCompare(leftCafe.name);
+      }
+
+      return leftCafe.name.localeCompare(rightCafe.name);
+    });
+
+    const total = cafesWithAverages.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const startIndex = (safePage - 1) * pageSize;
+    const pagedCafes = cafesWithAverages.slice(startIndex, startIndex + pageSize);
+
+    const favoriteCafeIds =
+      prismaUser && pagedCafes.length > 0
+        ? new Set(
+            (
+              await prisma.favorite.findMany({
+                where: {
+                  userId: prismaUser.id,
+                  cafeId: { in: pagedCafes.map((cafe) => cafe.id) },
+                },
+                select: { cafeId: true },
+              })
+            ).map((favorite) => favorite.cafeId),
+          )
+        : new Set<string>();
+
+    return NextResponse.json({
+      cafes: pagedCafes.map((cafe) => ({
+        ...cafe,
+        isFavorited: favoriteCafeIds.has(cafe.id),
+      })),
+      pagination: {
+        page: safePage,
+        pageSize,
+        total,
+        totalPages,
+        hasNextPage: safePage < totalPages,
+        hasPreviousPage: safePage > 1,
+      },
+      sort,
+    });
   } catch (error) {
-    console.error("GET /api/cafes/search failed", error);
+    await logError("GET /api/cafes/search failed", error, {
+      route: "/api/cafes/search",
+      method: "GET",
+    });
     return NextResponse.json(
       { error: "failed to search cafes" },
       { status: 500 },
