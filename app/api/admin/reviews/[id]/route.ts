@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { logError } from "@/lib/monitoring";
+import { logError, logInfo } from "@/lib/monitoring";
 import { getCurrentAuthUser } from "@/lib/auth";
 
 function getAdminEmails() {
-  return (process.env.adminEmails ?? process.env.ADMIN_EMAILS ?? "")
+  return (process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
@@ -47,6 +47,15 @@ export async function DELETE(
     // delete targeted review row
     const deletedReview = await prisma.review.delete({
       where: { id: id.trim() },
+    });
+
+    await logInfo("admin deleted review", {
+      route: "/api/admin/reviews/[id]",
+      method: "DELETE",
+      metadata: {
+        reviewId: id.trim(),
+        requesterEmail,
+      },
     });
 
     return NextResponse.json({ deletedReview });

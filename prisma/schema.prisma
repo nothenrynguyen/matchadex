@@ -21,6 +21,8 @@ model Cafe {
   address       String?
   city          String
   googlePlaceId String     @unique
+  latitude      Float?
+  longitude     Float?
   createdAt     DateTime   @default(now())
   reviews       Review[]
   favorites     Favorite[]

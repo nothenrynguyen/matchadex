@@ -10,13 +10,14 @@ MatchaDex is a full-stack Next.js App Router app for discovering, reviewing, and
 - Supabase Postgres
 - Supabase Auth
 - Supabase Storage
+- Mapbox GL JS
 - Tailwind CSS
 
 ## Features
 
 - Email/password auth (Supabase Auth)
 - Cafe discovery with city filter, search, sort, pagination
-- Map/list view toggle
+- Yelp-style split layout (scrollable list + interactive map)
 - Cafe detail pages with reviews and favorites
 - Review create/update (one review per user per cafe)
 - Review owner-only edit/delete
@@ -36,7 +37,8 @@ Required variables:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `adminEmails`
+- `ADMIN_EMAILS`
+- `MAPBOX_PUBLIC_TOKEN`
 - `SUPABASE_PHOTOS_BUCKET` (default: `cafe-photos`)
 - `MONITORING_WEBHOOK_URL` (optional)
 
@@ -73,6 +75,18 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+## Mapbox Setup
+
+1. Create a Mapbox account at `https://account.mapbox.com/`.
+2. Create or copy a public access token from **Access tokens**.
+3. Set this token in `.env`:
+
+```bash
+MAPBOX_PUBLIC_TOKEN=pk.your_public_token
+```
+
+4. Restart the Next.js server after updating env vars.
 
 ## Scripts
 
@@ -142,7 +156,13 @@ Open `http://localhost:3000`.
 
 - `DELETE /api/admin/reviews/[id]`
   - Requires auth.
-  - Requires email in `adminEmails` allowlist.
+  - Requires email in `ADMIN_EMAILS` allowlist.
+  - Example:
+
+```bash
+curl -X DELETE "http://localhost:3000/api/admin/reviews/<review-id>" \
+  --cookie "sb-access-token=<token>; sb-refresh-token=<refresh-token>"
+```
 
 ### Users
 
@@ -177,7 +197,7 @@ Use your own Supabase Auth user as demo, or create a dedicated demo account:
 
 Recommended:
 
-- Keep demo user in `adminEmails` only if admin deletion is needed during demos.
+- Keep demo user in `ADMIN_EMAILS` only if admin deletion is needed during demos.
 - Rotate demo password periodically.
 
 ## Testing Status
