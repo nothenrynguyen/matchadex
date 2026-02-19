@@ -2,9 +2,9 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
-// create postgres adapter with DATABASE_URL
+// create postgres adapter with direct URL fallback for reliable seed writes
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL,
 });
 
 // create Prisma client using postgres adapter
