@@ -46,6 +46,27 @@ function getSortableRating(value: number | null, sortOption: SortOption) {
   return value;
 }
 
+function toErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "unknown error";
+}
+
+async function runPrismaQuery<T>(
+  label: string,
+  operation: () => Promise<T>,
+  metadata: Record<string, unknown> = {},
+) {
+  try {
+    return await operation();
+  } catch (error) {
+    console.error(`[api/cafes] prisma query failed: ${label}`, {
+      ...metadata,
+      error: toErrorMessage(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const prismaUser = await getCurrentPrismaUser();
@@ -72,25 +93,35 @@ export async function GET(request: NextRequest) {
     }
 
     // load cafes using optional exact city filter
-    const cafes = await prisma.cafe.findMany({
-      where: cityParam ? { city: cityParam } : undefined,
-    });
+    const cafes = await runPrismaQuery(
+      "cafe.findMany",
+      () =>
+        prisma.cafe.findMany({
+          where: cityParam ? { city: cityParam } : undefined,
+        }),
+      { cityParam: cityParam ?? null },
+    );
 
     const cafeIds = cafes.map((cafe) => cafe.id);
 
     // aggregate review metrics for each cafe in one query
     const ratingGroups =
       cafeIds.length > 0
-        ? await prisma.review.groupBy({
-            by: ["cafeId"],
-            where: { cafeId: { in: cafeIds } },
-            _count: { _all: true },
-            _avg: {
-              tasteRating: true,
-              aestheticRating: true,
-              studyRating: true,
-            },
-          })
+        ? await runPrismaQuery(
+            "review.groupBy",
+            () =>
+              prisma.review.groupBy({
+                by: ["cafeId"],
+                where: { cafeId: { in: cafeIds } },
+                _count: { _all: true },
+                _avg: {
+                  tasteRating: true,
+                  aestheticRating: true,
+                  studyRating: true,
+                },
+              }),
+            { cafeCount: cafeIds.length },
+          )
         : [];
 
     const ratingMap = new Map(
@@ -156,13 +187,18 @@ export async function GET(request: NextRequest) {
       prismaUser && pagedCafes.length > 0
         ? new Set(
             (
-              await prisma.favorite.findMany({
-                where: {
-                  userId: prismaUser.id,
-                  cafeId: { in: pagedCafes.map((cafe) => cafe.id) },
-                },
-                select: { cafeId: true },
-              })
+              await runPrismaQuery(
+                "favorite.findMany",
+                () =>
+                  prisma.favorite.findMany({
+                    where: {
+                      userId: prismaUser.id,
+                      cafeId: { in: pagedCafes.map((cafe) => cafe.id) },
+                    },
+                    select: { cafeId: true },
+                  }),
+                { userId: prismaUser.id, pagedCafeCount: pagedCafes.length },
+              )
             ).map((favorite) => favorite.cafeId),
           )
         : new Set<string>();
@@ -183,12 +219,22 @@ export async function GET(request: NextRequest) {
       sort,
     });
   } catch (error) {
+    console.error("[api/cafes] request failed", {
+      error: toErrorMessage(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     await logError("GET /api/cafes failed", error, {
       route: "/api/cafes",
       method: "GET",
     });
+
+    const detailedMessage =
+      process.env.NODE_ENV === "development"
+        ? `failed to load cafes: ${toErrorMessage(error)}`
+        : "failed to load cafes";
+
     return NextResponse.json(
-      { error: "failed to load cafes" },
+      { error: detailedMessage },
       { status: 500 },
     );
   }
