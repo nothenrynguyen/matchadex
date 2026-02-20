@@ -710,7 +710,7 @@ function CafesPageContent() {
   }
 
   return (
-    <main className="flex h-full min-h-0 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
+    <main className="flex h-[calc(100vh-64px)] min-h-0 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
       <section className="flex min-h-0 flex-1 overflow-hidden gap-4">
         <aside className="flex w-[380px] min-w-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-[#fffdf6]">
           <div className="border-b border-emerald-100 bg-[#f3f1e7] p-4">
@@ -778,7 +778,7 @@ function CafesPageContent() {
             Page {pagination.page} of {pagination.totalPages} ({pagination.total} cafes)
           </div>
 
-          <div className="w-full overflow-y-auto p-3 flex-1">
+          <div className="h-full w-full flex-1 overflow-y-auto p-3">
             {isLoading ? (
               <div className="grid gap-3">
                 {Array.from({ length: 6 }).map((_, index) => (
@@ -893,8 +893,8 @@ function CafesPageContent() {
           </div>
         </aside>
 
-        <section className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl border border-emerald-100 bg-white">
-          <div ref={mapContainerRef} className="h-full min-h-full w-full" />
+        <section className="relative flex h-full min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl border border-emerald-100 bg-white">
+          <div ref={mapContainerRef} className="h-full w-full" />
 
           {isMapLoading ? (
             <div className="absolute inset-0 grid place-items-center bg-[#f8f6ee]/95">
@@ -1042,7 +1042,7 @@ export default function CafesPage() {
   return (
     <Suspense
       fallback={
-        <main className="h-full min-h-0 flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
+        <main className="flex h-[calc(100vh-64px)] min-h-0 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
           <div className="h-full animate-pulse rounded-2xl border border-zinc-200 bg-white" />
         </main>
       }
