@@ -64,7 +64,7 @@ export default async function ProfilePage() {
   const canUseAdminMode = isAdmin(currentUser.email);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-6 overflow-auto">
+    <main className="mx-auto h-full min-h-0 w-full max-w-4xl overflow-y-auto px-4 py-6">
       <section className="rounded-xl border border-zinc-200 bg-white p-6">
         <h1 className="text-2xl font-semibold text-zinc-900">{displayName}</h1>
         <p className="mt-4 text-sm text-zinc-700">
