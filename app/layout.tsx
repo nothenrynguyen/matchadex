@@ -23,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased flex flex-col">
+      <body className="h-screen antialiased flex flex-col overflow-hidden">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[90] focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm"
@@ -40,7 +40,7 @@ export default function RootLayout({
             </div>
           </div>
         </header>
-        <main id="main-content" className="flex-1 min-h-0">
+        <main id="main-content" className="flex-1 min-h-0 overflow-hidden">
           {children}
         </main>
         <footer className="flex-none">
