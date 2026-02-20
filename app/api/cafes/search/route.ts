@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/monitoring";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { normalizeForSearch } from "@/lib/text/normalizeForSearch";
 
 type SortOption = "rating" | "popularity";
 
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
     if (!queryParam) {
       return NextResponse.json({ error: "q is required" }, { status: 400 });
     }
+    const normalizedQuery = normalizeForSearch(queryParam);
 
     if (page === null) {
       return NextResponse.json({ error: "page must be a positive integer" }, { status: 400 });
@@ -85,19 +87,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // search cafe names case-insensitively with optional city filter
+    // search cafe names with optional city filter; normalize for diacritics in memory
     const cafes = await prisma.cafe.findMany({
       where: {
         isHidden: false,
-        name: {
-          contains: queryParam,
-          mode: "insensitive",
-        },
         ...(cityFilters.length > 0 ? { city: { in: cityFilters } } : {}),
       },
     });
 
-    const cafeIds = cafes.map((cafe) => cafe.id);
+    const matchedCafes = cafes.filter((cafe) =>
+      normalizeForSearch(cafe.name).includes(normalizedQuery),
+    );
+
+    const cafeIds = matchedCafes.map((cafe) => cafe.id);
 
     // aggregate review metrics for matched cafes
     const ratingGroups =
@@ -132,7 +134,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const cafesWithMetrics = cafes.map((cafe) => ({
+    const cafesWithMetrics = matchedCafes.map((cafe) => ({
       ...cafe,
       ...(ratingMap.get(cafe.id) ?? {
         reviewCount: 0,

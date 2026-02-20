@@ -20,6 +20,7 @@ function toDisplayName(email: string) {
 export default function Navbar() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
@@ -30,14 +31,44 @@ export default function Navbar() {
         data: { session },
       } = await supabase.auth.getSession();
       setUserEmail(session?.user.email ?? null);
+
+      try {
+        const response = await fetch("/api/auth/me", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as {
+          user: { isAdmin?: boolean } | null;
+        };
+        setIsAdmin(Boolean(payload.user?.isAdmin));
+      } catch {
+        setIsAdmin(false);
+      }
     }
 
     loadSession();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
       setUserEmail(session?.user.email ?? null);
+      if (!session?.user.email) {
+        setIsAdmin(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/auth/me", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as {
+          user: { isAdmin?: boolean } | null;
+        };
+        setIsAdmin(Boolean(payload.user?.isAdmin));
+      } catch {
+        setIsAdmin(false);
+      }
     });
 
     return () => {
@@ -78,6 +109,14 @@ export default function Navbar() {
       >
         Profile
       </Link>
+      {isAdmin ? (
+        <Link
+          href="/admin"
+          className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-zinc-700 hover:bg-[#eef4eb]"
+        >
+          Admin
+        </Link>
+      ) : null}
       <button
         type="button"
         onClick={handleLogout}
