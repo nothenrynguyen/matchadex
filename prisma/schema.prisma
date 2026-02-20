@@ -7,12 +7,12 @@ datasource db {
 }
 
 model User {
-  id         String     @id @default(uuid()) @db.Uuid
-  name       String?
-  email      String     @unique
-  createdAt  DateTime   @default(now())
-  reviews    Review[]
-  favorites  Favorite[]
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String?
+  createdAt DateTime   @default(now())
+  email     String     @unique
+  favorites Favorite[]
+  reviews   Review[]
 }
 
 model Cafe {
@@ -20,32 +20,29 @@ model Cafe {
   name          String
   address       String?
   city          String
+  createdAt     DateTime   @default(now())
   googlePlaceId String     @unique
   latitude      Float?
   longitude     Float?
-  createdAt     DateTime   @default(now())
-  reviews       Review[]
   favorites     Favorite[]
+  reviews       Review[]
 }
 
 model Review {
   id              String   @id @default(uuid()) @db.Uuid
   userId          String   @db.Uuid
   cafeId          String   @db.Uuid
-  tasteRating     Int
-  aestheticRating Int
-  studyRating     Int
-  priceEstimate   Float?
-  textComment     String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  aestheticRating Int
+  priceEstimate   Float?
+  studyRating     Int
+  tasteRating     Int
+  textComment     String?
+  cafe            Cafe     @relation(fields: [cafeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user            User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  user User @relation(fields: [userId], references: [id])
-  cafe Cafe @relation(fields: [cafeId], references: [id])
-
-  // one review per user per cafe
   @@unique([userId, cafeId])
-
 }
 
 model Favorite {
@@ -53,10 +50,8 @@ model Favorite {
   userId    String   @db.Uuid
   cafeId    String   @db.Uuid
   createdAt DateTime @default(now())
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  user User @relation(fields: [userId], references: [id])
-  cafe Cafe @relation(fields: [cafeId], references: [id])
-
-  // one favorite per user per cafe
   @@unique([userId, cafeId])
 }
