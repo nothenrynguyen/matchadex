@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAuthUser } from "@/lib/auth";
-import { getAdminEmails, isAdminEmail } from "@/lib/admin";
+import { getAdminEmails, isAdmin } from "@/lib/admin";
 
 function parseShowHidden(value: string | null) {
   return value === "1" || value?.toLowerCase() === "true";
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  if (!isAdminEmail(requesterEmail)) {
+  if (!isAdmin(requesterEmail)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

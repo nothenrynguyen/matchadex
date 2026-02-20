@@ -110,6 +110,38 @@ export default function AdminCafePanel() {
     }
   }
 
+  async function handleRemoveCafe(cafe: AdminCafe) {
+    const shouldRemove = window.confirm(
+      `Remove "${cafe.name}" from public view? This will hide it instead of deleting data.`,
+    );
+
+    if (!shouldRemove) {
+      return;
+    }
+
+    const previousCafes = cafes;
+    setCafes((currentCafes) =>
+      currentCafes.map((currentCafe) =>
+        currentCafe.id === cafe.id
+          ? {
+              ...currentCafe,
+              isHidden: true,
+            }
+          : currentCafe,
+      ),
+    );
+
+    const response = await fetch(`/api/admin/cafes/${encodeURIComponent(cafe.id)}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      setCafes(previousCafes);
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      window.alert(payload?.error ?? "Failed to remove cafe");
+    }
+  }
+
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setReloadCount((currentCount) => currentCount + 1);
@@ -183,13 +215,22 @@ export default function AdminCafePanel() {
                       )}
                     </td>
                     <td className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleHidden(cafe)}
-                        className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50"
-                      >
-                        {cafe.isHidden ? "Unhide" : "Hide"}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleHidden(cafe)}
+                          className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50"
+                        >
+                          {cafe.isHidden ? "Unhide" : "Hide"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCafe(cafe)}
+                          className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50"
+                        >
+                          Delete cafe
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

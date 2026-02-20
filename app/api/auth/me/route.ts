@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentAuthUser, getCurrentPrismaUser } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 
 export async function GET() {
   try {
@@ -12,6 +13,7 @@ export async function GET() {
             id: authUser.id,
             email: authUser.email ?? null,
             prismaUserId: prismaUser?.id ?? null,
+            isAdmin: isAdmin(authUser.email),
           }
         : null,
     });

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
+import AdminModeToggle from "./AdminModeToggle";
 
 export default async function ProfilePage() {
   const currentUser = await getCurrentPrismaUser();
@@ -59,16 +61,18 @@ export default async function ProfilePage() {
     ).values(),
   );
   const displayName = (currentUser.name || currentUser.email).toLowerCase();
+  const canUseAdminMode = isAdmin(currentUser.email);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <section className="rounded-xl border border-zinc-200 bg-white p-6">
         <h1 className="text-2xl font-semibold text-zinc-900">{displayName}</h1>
-        <p className="mt-1 text-sm text-zinc-600">{currentUser.email}</p>
         <p className="mt-4 text-sm text-zinc-700">
           {reviews.length} reviews written
         </p>
       </section>
+
+      {canUseAdminMode ? <AdminModeToggle /> : null}
 
       <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6">
         <h2 className="text-lg font-semibold text-zinc-900">Cafes reviewed</h2>

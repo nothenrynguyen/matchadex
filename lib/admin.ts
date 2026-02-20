@@ -11,15 +11,17 @@ export function getAdminEmails() {
     .filter(Boolean);
 }
 
-export function isAdminEmail(email: string | null | undefined) {
-  if (!email) {
+export function isAdmin(userEmail: string | null | undefined) {
+  if (!userEmail) {
     return false;
   }
 
-  return getAdminEmails().includes(normalizeEmail(email));
+  return getAdminEmails().includes(normalizeEmail(userEmail));
 }
 
 export async function isCurrentUserAdmin() {
   const authUser = await getCurrentAuthUser();
-  return isAdminEmail(authUser?.email);
+  return isAdmin(authUser?.email);
 }
+
+export const isAdminEmail = isAdmin;

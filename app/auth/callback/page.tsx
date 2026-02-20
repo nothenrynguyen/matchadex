@@ -46,7 +46,7 @@ export default function AuthCallbackPage() {
             {errorMessage}
           </p>
         ) : (
-          <p className="mt-3 text-sm text-zinc-600">Signing you in with Google...</p>
+          <p className="mt-3 text-sm text-zinc-600">Signing you in to MatchaDex with Google...</p>
         )}
       </section>
     </main>

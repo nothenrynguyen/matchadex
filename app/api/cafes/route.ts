@@ -44,7 +44,19 @@ function parseCityFilters(searchParams: URLSearchParams) {
     .map((value) => value.trim())
     .filter((value) => value.length > 0 && value.toLowerCase() !== "all");
 
-  return Array.from(new Set(normalized));
+  const expanded = normalized.flatMap((value) => {
+    if (value === "Bay") {
+      return ["Bay", "Bay Area"];
+    }
+
+    if (value === "Bay Area") {
+      return ["Bay Area", "Bay"];
+    }
+
+    return [value];
+  });
+
+  return Array.from(new Set(expanded));
 }
 
 function toErrorMessage(error: unknown) {

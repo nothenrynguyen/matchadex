@@ -195,6 +195,7 @@ function CafesPageContent() {
   const [selectedCafeId, setSelectedCafeId] = useState<string | null>(null);
   const [listReloadCount, setListReloadCount] = useState(0);
   const [sessionUserEmail, setSessionUserEmail] = useState<string | null>(null);
+  const [sessionIsAdmin, setSessionIsAdmin] = useState(false);
   const [toastState, setToastState] = useState<{
     message: string;
     tone: "success" | "error";
@@ -260,12 +261,14 @@ function CafesPageContent() {
         }
 
         const payload = (await response.json()) as {
-          user: { email: string | null } | null;
+          user: { email: string | null; isAdmin?: boolean } | null;
         };
 
         setSessionUserEmail(payload.user?.email ?? null);
+        setSessionIsAdmin(Boolean(payload.user?.isAdmin));
       } catch {
         setSessionUserEmail(null);
+        setSessionIsAdmin(false);
       }
     }
 
@@ -372,6 +375,23 @@ function CafesPageContent() {
 
     return () => {
       controller.abort();
+    };
+  }, [selectedCafeId]);
+
+  useEffect(() => {
+    if (!selectedCafeId) {
+      return;
+    }
+
+    function handleEscapeKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSelectedCafeId(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleEscapeKey);
+    return () => {
+      window.removeEventListener("keydown", handleEscapeKey);
     };
   }, [selectedCafeId]);
 
@@ -627,6 +647,41 @@ function CafesPageContent() {
     }
   }
 
+  async function handleRemoveCafe(cafeId: string) {
+    if (!sessionIsAdmin) {
+      return;
+    }
+
+    const targetCafe = cafes.find((cafe) => cafe.id === cafeId);
+    const shouldRemove = window.confirm(
+      `Remove "${targetCafe?.name ?? "this cafe"}" from public listings?`,
+    );
+
+    if (!shouldRemove) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/cafes/${encodeURIComponent(cafeId)}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Failed to remove cafe");
+      }
+
+      setSelectedCafeId(null);
+      setListReloadCount((currentCount) => currentCount + 1);
+      setToastState({ message: "Cafe removed from public listings.", tone: "success" });
+    } catch (error) {
+      setToastState({
+        message: error instanceof Error ? error.message : "Failed to remove cafe.",
+        tone: "error",
+      });
+    }
+  }
+
   function handleCafeClick(cafe: Cafe) {
     setSelectedCafeId(cafe.id);
 
@@ -655,9 +710,9 @@ function CafesPageContent() {
   }
 
   return (
-    <main className="h-full min-h-0 flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
-      <section className="flex-1 flex min-h-0 flex-col gap-4 lg:flex-row">
-        <aside className="w-full overflow-hidden rounded-2xl border border-emerald-100 bg-[#fffdf6] lg:w-[400px] flex flex-col">
+    <main className="flex h-full min-h-0 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
+      <section className="flex min-h-0 flex-1 overflow-hidden gap-4">
+        <aside className="flex w-[380px] min-w-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-[#fffdf6]">
           <div className="border-b border-emerald-100 bg-[#f3f1e7] p-4">
             <div className="flex items-center justify-between gap-2">
               <h1 className="text-xl font-semibold text-zinc-900">MatchaDex Cafes</h1>
@@ -784,7 +839,7 @@ function CafesPageContent() {
                           <p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">{cafe.city}</p>
                         </div>
                         <div className="rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-700">
-                          {`${formatRatingLabel(cafe.weightedRating)} (${cafe.reviewCount} reviews)`}
+                          {formatRatingLabel(cafe.weightedRating, cafe.reviewCount)}
                         </div>
                       </div>
 
@@ -838,8 +893,8 @@ function CafesPageContent() {
           </div>
         </aside>
 
-        <section className="relative flex-1 h-full overflow-hidden rounded-2xl border border-emerald-100 bg-white">
-          <div ref={mapContainerRef} className="h-full min-h-[360px] w-full" />
+        <section className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl border border-emerald-100 bg-white">
+          <div ref={mapContainerRef} className="h-full min-h-full w-full" />
 
           {isMapLoading ? (
             <div className="absolute inset-0 grid place-items-center bg-[#f8f6ee]/95">
@@ -873,8 +928,14 @@ function CafesPageContent() {
           ) : null}
 
           {selectedCafeId ? (
-            <div className="absolute inset-0 z-20 flex items-end justify-center bg-zinc-950/30 p-3 sm:items-center sm:justify-end sm:p-4">
-              <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-4 shadow-xl">
+            <div
+              className="absolute inset-0 z-20 flex items-end justify-center bg-zinc-950/30 p-3 sm:items-center sm:justify-end sm:p-4"
+              onClick={() => setSelectedCafeId(null)}
+            >
+              <div
+                className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-4 shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-zinc-900">
@@ -899,7 +960,10 @@ function CafesPageContent() {
                 <div className="mt-3 rounded-lg bg-zinc-100 px-3 py-2 text-xs text-zinc-700">
                   {isPreviewLoading
                     ? "Loading preview..."
-                    : `${formatRatingLabel(previewCafe?.averageRatings.overallRating ?? selectedCafe?.weightedRating ?? null)} (${previewCafe?.averageRatings.reviewCount ?? selectedCafe?.reviewCount ?? 0} reviews)`}
+                    : formatRatingLabel(
+                        previewCafe?.averageRatings.overallRating ?? selectedCafe?.weightedRating ?? null,
+                        previewCafe?.averageRatings.reviewCount ?? selectedCafe?.reviewCount ?? 0,
+                      )}
                 </div>
 
                 <div className="mt-3 space-y-2">
@@ -947,6 +1011,15 @@ function CafesPageContent() {
                   >
                     View full page
                   </Link>
+                  {sessionIsAdmin ? (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCafe(selectedCafeId)}
+                      className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50"
+                    >
+                      Remove cafe
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </div>
