@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+function toAverage(value: number) {
+  return Number(value.toFixed(2));
+}
+
 export default async function ProfilePage() {
   const currentUser = await getCurrentPrismaUser();
 
@@ -16,6 +20,11 @@ export default async function ProfilePage() {
       orderBy: { updatedAt: "desc" },
       select: {
         id: true,
+        tasteRating: true,
+        aestheticRating: true,
+        studyRating: true,
+        textComment: true,
+        updatedAt: true,
         cafe: {
           select: {
             id: true,
@@ -41,13 +50,28 @@ export default async function ProfilePage() {
     }),
   ]);
 
-  const reviewedCafeMap = new Map<string, { id: string; name: string; city: string }>();
-
-  for (const review of reviews) {
-    reviewedCafeMap.set(review.cafe.id, review.cafe);
-  }
-
-  const reviewedCafes = Array.from(reviewedCafeMap.values());
+  const totalTaste = reviews.reduce((total, review) => total + review.tasteRating, 0);
+  const totalAesthetic = reviews.reduce((total, review) => total + review.aestheticRating, 0);
+  const totalStudy = reviews.reduce((total, review) => total + review.studyRating, 0);
+  const averageTaste = reviews.length > 0 ? toAverage(totalTaste / reviews.length) : null;
+  const averageAesthetic = reviews.length > 0 ? toAverage(totalAesthetic / reviews.length) : null;
+  const averageStudy = reviews.length > 0 ? toAverage(totalStudy / reviews.length) : null;
+  const averageOverall =
+    averageTaste === null || averageAesthetic === null || averageStudy === null
+      ? null
+      : toAverage((averageTaste + averageAesthetic + averageStudy) / 3);
+  const reviewedCafes = Array.from(
+    new Map(
+      reviews.map((review) => [
+        review.cafe.id,
+        {
+          id: review.cafe.id,
+          name: review.cafe.name,
+          city: review.cafe.city,
+        },
+      ]),
+    ).values(),
+  );
   const displayName = (currentUser.name || currentUser.email).toLowerCase();
 
   return (
@@ -58,6 +82,28 @@ export default async function ProfilePage() {
         <p className="mt-4 text-sm text-zinc-700">
           {reviews.length} reviews written
         </p>
+      </section>
+
+      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6">
+        <h2 className="text-lg font-semibold text-zinc-900">Average ratings given</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-4">
+          <div className="rounded-lg bg-[#eef4eb] p-3 text-sm text-zinc-700">
+            <p className="text-xs text-zinc-500">Overall</p>
+            <p className="text-lg font-semibold">{averageOverall ?? "N/A"}</p>
+          </div>
+          <div className="rounded-lg bg-[#eef4eb] p-3 text-sm text-zinc-700">
+            <p className="text-xs text-zinc-500">Taste</p>
+            <p className="text-lg font-semibold">{averageTaste ?? "N/A"}</p>
+          </div>
+          <div className="rounded-lg bg-[#eef4eb] p-3 text-sm text-zinc-700">
+            <p className="text-xs text-zinc-500">Aesthetic</p>
+            <p className="text-lg font-semibold">{averageAesthetic ?? "N/A"}</p>
+          </div>
+          <div className="rounded-lg bg-[#eef4eb] p-3 text-sm text-zinc-700">
+            <p className="text-xs text-zinc-500">Study</p>
+            <p className="text-lg font-semibold">{averageStudy ?? "N/A"}</p>
+          </div>
+        </div>
       </section>
 
       <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6">
@@ -90,6 +136,35 @@ export default async function ProfilePage() {
                   {favorite.cafe.name}
                 </Link>
                 <p className="text-xs text-zinc-500">{favorite.cafe.city}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6">
+        <h2 className="text-lg font-semibold text-zinc-900">Your reviews</h2>
+        {reviews.length === 0 ? (
+          <p className="mt-3 text-sm text-zinc-600">No reviews yet.</p>
+        ) : (
+          <ul className="mt-3 grid gap-3">
+            {reviews.map((review) => (
+              <li key={review.id} className="rounded-lg border border-zinc-200 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Link href={`/cafes/${review.cafe.id}`} className="text-sm font-medium text-zinc-900 hover:underline">
+                    {review.cafe.name}
+                  </Link>
+                  <p className="text-xs text-zinc-500">{new Date(review.updatedAt).toLocaleDateString()}</p>
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">{review.cafe.city}</p>
+                <div className="mt-2 grid gap-1 text-sm text-zinc-700 sm:grid-cols-3">
+                  <p>Taste: {review.tasteRating}</p>
+                  <p>Aesthetic: {review.aestheticRating}</p>
+                  <p>Study: {review.studyRating}</p>
+                </div>
+                {review.textComment ? (
+                  <p className="mt-2 text-sm text-zinc-700">{review.textComment}</p>
+                ) : null}
               </li>
             ))}
           </ul>

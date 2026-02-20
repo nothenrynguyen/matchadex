@@ -86,7 +86,7 @@ describe("GET /api/cafes", () => {
 
     const response = await GET(request);
     const payload = (await response.json()) as {
-      cafes: Array<{ id: string; weightedRating: number; reviewCount: number }>;
+      cafes: Array<{ id: string; weightedRating: number | null; reviewCount: number }>;
       pagination: { total: number; totalPages: number; page: number };
       sort: string;
     };
@@ -103,7 +103,51 @@ describe("GET /api/cafes", () => {
     });
     expect(payload.cafes).toHaveLength(2);
     expect(payload.cafes[0].id).toBe("cafe-1");
-    expect(payload.cafes[1].id).toBe("cafe-3");
+    expect(payload.cafes[1].id).toBe("cafe-2");
+    expect(payload.cafes.find((cafe) => cafe.id === "cafe-1")?.weightedRating).not.toBeNull();
+  });
+
+  it("returns null rating for cafes with zero reviews (N/A state)", async () => {
+    prismaMock.cafe.findMany.mockResolvedValue([
+      {
+        id: "cafe-empty",
+        name: "Cafe Empty",
+        city: "LA",
+        address: "Addr",
+        googlePlaceId: "gp-empty",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ]);
+
+    prismaMock.review.groupBy.mockResolvedValue([]);
+
+    const request = new NextRequest("http://localhost:3000/api/cafes?city=LA&page=1&pageSize=12&sort=rating");
+
+    const response = await GET(request);
+    const payload = (await response.json()) as {
+      cafes: Array<{ id: string; weightedRating: number | null; reviewCount: number }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.cafes[0].reviewCount).toBe(0);
+    expect(payload.cafes[0].weightedRating).toBeNull();
+  });
+
+  it("supports multiple city filters", async () => {
+    prismaMock.cafe.findMany.mockResolvedValue([]);
+    prismaMock.review.groupBy.mockResolvedValue([]);
+
+    const request = new NextRequest("http://localhost:3000/api/cafes?city=LA&city=OC&page=1&pageSize=12");
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(prismaMock.cafe.findMany).toHaveBeenCalledWith({
+      where: {
+        city: {
+          in: ["LA", "OC"],
+        },
+      },
+    });
   });
 
   it("returns 400 for invalid pagination params", async () => {

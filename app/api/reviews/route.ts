@@ -10,7 +10,6 @@ type CreateReviewBody = {
   tasteRating?: number;
   aestheticRating?: number;
   studyRating?: number;
-  priceEstimate?: number | null;
   textComment?: string | null;
 };
 
@@ -70,14 +69,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (
-      body.priceEstimate !== undefined &&
-      body.priceEstimate !== null &&
-      (typeof body.priceEstimate !== "number" || body.priceEstimate < 0)
-    ) {
-      return NextResponse.json({ error: "priceEstimate must be a positive number" }, { status: 400 });
-    }
-
-    if (
       body.textComment !== undefined &&
       body.textComment !== null &&
       body.textComment.trim().length > 500
@@ -108,7 +99,6 @@ export async function POST(request: NextRequest) {
         tasteRating,
         aestheticRating,
         studyRating,
-        priceEstimate: body.priceEstimate ?? null,
         textComment: body.textComment?.trim() || null,
       },
       create: {
@@ -117,7 +107,6 @@ export async function POST(request: NextRequest) {
         tasteRating,
         aestheticRating,
         studyRating,
-        priceEstimate: body.priceEstimate ?? null,
         textComment: body.textComment?.trim() || null,
       },
     });

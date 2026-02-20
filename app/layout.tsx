@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
 import Navbar from "./components/Navbar";
-import MetroSelector from "./components/metro-selector";
 import Footer from "./components/footer";
 import "./globals.css";
 
@@ -31,9 +29,6 @@ export default function RootLayout({
               MatchaDex
             </Link>
             <div className="flex flex-wrap items-center gap-3">
-              <Suspense fallback={null}>
-                <MetroSelector />
-              </Suspense>
               <Navbar />
             </div>
           </div>

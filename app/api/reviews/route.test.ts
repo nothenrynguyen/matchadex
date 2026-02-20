@@ -64,7 +64,6 @@ describe("POST /api/reviews", () => {
         tasteRating: 5,
         aestheticRating: 4,
         studyRating: 5,
-        priceEstimate: 7.5,
         textComment: "Great",
       }),
       headers: {

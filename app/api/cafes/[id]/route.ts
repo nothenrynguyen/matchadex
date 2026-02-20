@@ -27,7 +27,14 @@ export async function GET(
         reviews: {
           orderBy: { createdAt: "desc" },
           take: 20,
-          include: {
+          select: {
+            id: true,
+            cafeId: true,
+            tasteRating: true,
+            aestheticRating: true,
+            studyRating: true,
+            textComment: true,
+            createdAt: true,
             user: {
               select: {
                 id: true,

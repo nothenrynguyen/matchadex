@@ -26,7 +26,6 @@ type CafeDetail = {
     tasteRating: number;
     aestheticRating: number;
     studyRating: number;
-    priceEstimate: number | null;
     textComment: string | null;
     createdAt: string;
     user: {
@@ -38,10 +37,9 @@ type CafeDetail = {
 };
 
 type ReviewFormState = {
-  tasteRating: string;
-  aestheticRating: string;
-  studyRating: string;
-  priceEstimate: string;
+  tasteRating: number;
+  aestheticRating: number;
+  studyRating: number;
   textComment: string;
 };
 
@@ -54,6 +52,42 @@ type CafePhoto = {
 
 function ratingText(value: number | null) {
   return value === null ? "N/A" : value.toFixed(1);
+}
+
+function StarRatingInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: "Taste" | "Aesthetic" | "Study";
+  value: number;
+  onChange: (nextRating: number) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
+      <div className="mt-2 flex items-center gap-1">
+        {Array.from({ length: 5 }, (_, index) => {
+          const starValue = index + 1;
+          const isActive = starValue <= value;
+
+          return (
+            <button
+              key={`${label}-${starValue}`}
+              type="button"
+              aria-label={`${label} ${starValue} star${starValue === 1 ? "" : "s"}`}
+              onClick={() => onChange(starValue)}
+              className={`text-xl leading-none transition ${
+                isActive ? "text-amber-500" : "text-zinc-300 hover:text-amber-400"
+              }`}
+            >
+              ★
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function DetailSkeleton() {
@@ -83,18 +117,16 @@ export default function CafeDetailPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [reviewFormState, setReviewFormState] = useState<ReviewFormState>({
-    tasteRating: "5",
-    aestheticRating: "5",
-    studyRating: "5",
-    priceEstimate: "",
+    tasteRating: 5,
+    aestheticRating: 5,
+    studyRating: 5,
     textComment: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createReviewFormState, setCreateReviewFormState] = useState<ReviewFormState>({
-    tasteRating: "5",
-    aestheticRating: "5",
-    studyRating: "5",
-    priceEstimate: "",
+    tasteRating: 5,
+    aestheticRating: 5,
+    studyRating: 5,
     textComment: "",
   });
   const [isCreatingReview, setIsCreatingReview] = useState(false);
@@ -235,10 +267,9 @@ export default function CafeDetailPage() {
   function startEditingReview(review: CafeDetail["reviews"][number]) {
     setEditingReviewId(review.id);
     setReviewFormState({
-      tasteRating: String(review.tasteRating),
-      aestheticRating: String(review.aestheticRating),
-      studyRating: String(review.studyRating),
-      priceEstimate: review.priceEstimate === null ? "" : String(review.priceEstimate),
+      tasteRating: review.tasteRating,
+      aestheticRating: review.aestheticRating,
+      studyRating: review.studyRating,
       textComment: review.textComment ?? "",
     });
   }
@@ -266,12 +297,9 @@ export default function CafeDetailPage() {
         },
         body: JSON.stringify({
           cafeId: review.cafeId,
-          tasteRating: Number(reviewFormState.tasteRating),
-          aestheticRating: Number(reviewFormState.aestheticRating),
-          studyRating: Number(reviewFormState.studyRating),
-          priceEstimate: reviewFormState.priceEstimate
-            ? Number(reviewFormState.priceEstimate)
-            : null,
+          tasteRating: reviewFormState.tasteRating,
+          aestheticRating: reviewFormState.aestheticRating,
+          studyRating: reviewFormState.studyRating,
           textComment: reviewFormState.textComment || null,
         }),
       });
@@ -313,12 +341,9 @@ export default function CafeDetailPage() {
         },
         body: JSON.stringify({
           cafeId: cafe.id,
-          tasteRating: Number(createReviewFormState.tasteRating),
-          aestheticRating: Number(createReviewFormState.aestheticRating),
-          studyRating: Number(createReviewFormState.studyRating),
-          priceEstimate: createReviewFormState.priceEstimate
-            ? Number(createReviewFormState.priceEstimate)
-            : null,
+          tasteRating: createReviewFormState.tasteRating,
+          aestheticRating: createReviewFormState.aestheticRating,
+          studyRating: createReviewFormState.studyRating,
           textComment: createReviewFormState.textComment || null,
         }),
       });
@@ -332,10 +357,9 @@ export default function CafeDetailPage() {
 
       await refreshCafeDetail();
       setCreateReviewFormState({
-        tasteRating: "5",
-        aestheticRating: "5",
-        studyRating: "5",
-        priceEstimate: "",
+        tasteRating: 5,
+        aestheticRating: 5,
+        studyRating: 5,
         textComment: "",
       });
       setToastState({ message: "Review created.", tone: "success" });
@@ -603,62 +627,36 @@ export default function CafeDetailPage() {
         {cafe.viewerPrismaUserId && !hasOwnReview ? (
           <form onSubmit={handleCreateReview} className="mt-3 grid gap-3 rounded-xl border border-zinc-200 bg-white p-4">
             <p className="text-sm font-medium text-zinc-800">Write a review</p>
-            <div className="grid gap-3 sm:grid-cols-4">
-              <input
+            <div className="grid gap-3 sm:grid-cols-3">
+              <StarRatingInput
+                label="Taste"
                 value={createReviewFormState.tasteRating}
-                onChange={(event) =>
+                onChange={(nextRating) =>
                   setCreateReviewFormState((currentState) => ({
                     ...currentState,
-                    tasteRating: event.target.value,
+                    tasteRating: nextRating,
                   }))
                 }
-                type="number"
-                min={1}
-                max={5}
-                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                required
               />
-              <input
+              <StarRatingInput
+                label="Aesthetic"
                 value={createReviewFormState.aestheticRating}
-                onChange={(event) =>
+                onChange={(nextRating) =>
                   setCreateReviewFormState((currentState) => ({
                     ...currentState,
-                    aestheticRating: event.target.value,
+                    aestheticRating: nextRating,
                   }))
                 }
-                type="number"
-                min={1}
-                max={5}
-                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                required
               />
-              <input
+              <StarRatingInput
+                label="Study"
                 value={createReviewFormState.studyRating}
-                onChange={(event) =>
+                onChange={(nextRating) =>
                   setCreateReviewFormState((currentState) => ({
                     ...currentState,
-                    studyRating: event.target.value,
+                    studyRating: nextRating,
                   }))
                 }
-                type="number"
-                min={1}
-                max={5}
-                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                required
-              />
-              <input
-                value={createReviewFormState.priceEstimate}
-                onChange={(event) =>
-                  setCreateReviewFormState((currentState) => ({
-                    ...currentState,
-                    priceEstimate: event.target.value,
-                  }))
-                }
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder="Price"
-                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
               />
             </div>
             <textarea
@@ -737,62 +735,36 @@ export default function CafeDetailPage() {
 
                 {editingReviewId === review.id ? (
                   <form onSubmit={handleSaveReview} className="mt-4 grid gap-3 rounded-lg border border-zinc-200 p-3">
-                    <div className="grid gap-3 sm:grid-cols-4">
-                      <input
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <StarRatingInput
+                        label="Taste"
                         value={reviewFormState.tasteRating}
-                        onChange={(event) =>
+                        onChange={(nextRating) =>
                           setReviewFormState((currentState) => ({
                             ...currentState,
-                            tasteRating: event.target.value,
+                            tasteRating: nextRating,
                           }))
                         }
-                        type="number"
-                        min={1}
-                        max={5}
-                        className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                        required
                       />
-                      <input
+                      <StarRatingInput
+                        label="Aesthetic"
                         value={reviewFormState.aestheticRating}
-                        onChange={(event) =>
+                        onChange={(nextRating) =>
                           setReviewFormState((currentState) => ({
                             ...currentState,
-                            aestheticRating: event.target.value,
+                            aestheticRating: nextRating,
                           }))
                         }
-                        type="number"
-                        min={1}
-                        max={5}
-                        className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                        required
                       />
-                      <input
+                      <StarRatingInput
+                        label="Study"
                         value={reviewFormState.studyRating}
-                        onChange={(event) =>
+                        onChange={(nextRating) =>
                           setReviewFormState((currentState) => ({
                             ...currentState,
-                            studyRating: event.target.value,
+                            studyRating: nextRating,
                           }))
                         }
-                        type="number"
-                        min={1}
-                        max={5}
-                        className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                        required
-                      />
-                      <input
-                        value={reviewFormState.priceEstimate}
-                        onChange={(event) =>
-                          setReviewFormState((currentState) => ({
-                            ...currentState,
-                            priceEstimate: event.target.value,
-                          }))
-                        }
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        placeholder="Price"
-                        className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
                       />
                     </div>
 

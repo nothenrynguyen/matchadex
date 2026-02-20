@@ -17,7 +17,6 @@ type UserProfilePayload = {
       tasteRating: number;
       aestheticRating: number;
       studyRating: number;
-      priceEstimate: number | null;
       textComment: string | null;
       updatedAt: string;
       cafe: {
@@ -44,7 +43,6 @@ type ReviewFormState = {
   tasteRating: string;
   aestheticRating: string;
   studyRating: string;
-  priceEstimate: string;
   textComment: string;
 };
 
@@ -64,7 +62,6 @@ export default function UserProfilePage() {
     tasteRating: "5",
     aestheticRating: "5",
     studyRating: "5",
-    priceEstimate: "",
     textComment: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -137,7 +134,6 @@ export default function UserProfilePage() {
       tasteRating: String(review.tasteRating),
       aestheticRating: String(review.aestheticRating),
       studyRating: String(review.studyRating),
-      priceEstimate: review.priceEstimate === null ? "" : String(review.priceEstimate),
       textComment: review.textComment ?? "",
     });
   }
@@ -186,9 +182,6 @@ export default function UserProfilePage() {
           tasteRating: Number(reviewFormState.tasteRating),
           aestheticRating: Number(reviewFormState.aestheticRating),
           studyRating: Number(reviewFormState.studyRating),
-          priceEstimate: reviewFormState.priceEstimate
-            ? Number(reviewFormState.priceEstimate)
-            : null,
           textComment: reviewFormState.textComment || null,
         }),
       });
@@ -402,7 +395,7 @@ export default function UserProfilePage() {
 
                 {editingReviewId === review.id ? (
                   <form onSubmit={handleSaveReview} className="mt-4 grid gap-3 rounded-lg border border-zinc-200 p-3">
-                    <div className="grid gap-3 sm:grid-cols-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
                       <input
                         value={reviewFormState.tasteRating}
                         onChange={(event) =>
@@ -444,20 +437,6 @@ export default function UserProfilePage() {
                         max={5}
                         className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
                         required
-                      />
-                      <input
-                        value={reviewFormState.priceEstimate}
-                        onChange={(event) =>
-                          setReviewFormState((currentState) => ({
-                            ...currentState,
-                            priceEstimate: event.target.value,
-                          }))
-                        }
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        placeholder="Price"
-                        className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
                       />
                     </div>
 

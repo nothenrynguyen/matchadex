@@ -1,38 +1,22 @@
 # MatchaDex
 
-Screenshot: *(add product screenshot here)*
+MatchaDex is a map-first cafe discovery app focused on matcha and coffee shops, with reviews, favorites, and user profiles.
 
-A production-focused cafe discovery app with map-first browsing, reviews, and moderation.
+## Demo
 
-## Live Demo
-
-- https://matchadex.vercel.app
-
-## Features
-
-- Cafe search
-- Map view
-- Reviews CRUD
-- Admin delete
-- Auth
-- Weighted rating sort
-- Popularity sort
-- User profile page
-
-## Authentication
-
-MatchaDex uses Google OAuth via Supabase.
-No email/password accounts supported.
+- https://matchadex.vercel.app/
 
 ## Tech Stack
 
-- Next.js App Router
-- Prisma + Supabase Postgres
-- Mapbox
+- Next.js (App Router)
+- TypeScript
+- Prisma ORM
+- Supabase (Postgres + Auth)
 - Tailwind CSS
+- Mapbox
 - Vercel
 
-## Local Setup
+## Run Locally
 
 1. Install dependencies:
 
@@ -40,28 +24,7 @@ No email/password accounts supported.
 npm install
 ```
 
-2. Configure environment variables (see below).
-
-3. Run migrations:
-
-```bash
-npx prisma migrate dev
-```
-
-4. (Optional) Seed cafes:
-
-```bash
-npm run db:seed
-```
-
-5. Start development server:
-
-```bash
-npm run dev
-```
-
-## Required Environment Variables
-
+2. Configure environment variables:
 - `DATABASE_URL`
 - `DIRECT_DATABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -71,28 +34,26 @@ npm run dev
 - `NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN`
 - `GOOGLE_PLACES_API_KEY`
 
-## Deployment
-
-1. Push to `main`.
-2. Vercel auto-deploys.
-3. Run migrations on production DB:
+3. Run database migrations:
 
 ```bash
-npm run db:migrate:deploy
+npx prisma migrate dev
 ```
 
-## Production Checklist
-
-- Build passes: `npm run build`
-- Migrations applied
-- Seed done
-- `GET /api/health` works
-- `GET /api/test-db` works
-
-## Import Real Cafes
-
-Set Google Places API key and run:
+4. Start the app:
 
 ```bash
-GOOGLE_PLACES_API_KEY=your_key_here node scripts/importCafes.ts
+npm run dev
 ```
+
+## Import Cafes
+
+```bash
+npm run import:cafes
+```
+
+Manual cafes can be added in `scripts/manualCafes.json`.
+
+## Screenshots
+
+- Add screenshots here

@@ -37,23 +37,29 @@ function parseSort(value: string | null): SortOption {
   return "rating";
 }
 
+function parseCityFilters(searchParams: URLSearchParams) {
+  const rawCityValues = searchParams.getAll("city");
+  const normalized = rawCityValues
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0 && value.toLowerCase() !== "all");
+
+  return Array.from(new Set(normalized));
+}
+
 export async function GET(request: NextRequest) {
   try {
     const prismaUser = await getCurrentPrismaUser();
 
     // validate query and parse filtering parameters
     const queryParam = request.nextUrl.searchParams.get("q")?.trim();
-    const cityParam = request.nextUrl.searchParams.get("city")?.trim();
+    const cityFilters = parseCityFilters(request.nextUrl.searchParams);
     const page = parsePositiveInt(request.nextUrl.searchParams.get("page"), 1);
     const pageSize = parsePositiveInt(request.nextUrl.searchParams.get("pageSize"), 6);
     const sort = parseSort(request.nextUrl.searchParams.get("sort"));
 
     if (!queryParam) {
       return NextResponse.json({ error: "q is required" }, { status: 400 });
-    }
-
-    if (cityParam !== undefined && cityParam !== null && cityParam.length === 0) {
-      return NextResponse.json({ error: "city must not be empty" }, { status: 400 });
     }
 
     if (page === null) {
@@ -74,7 +80,7 @@ export async function GET(request: NextRequest) {
           contains: queryParam,
           mode: "insensitive",
         },
-        ...(cityParam ? { city: cityParam } : {}),
+        ...(cityFilters.length > 0 ? { city: { in: cityFilters } } : {}),
       },
     });
 
@@ -122,24 +128,18 @@ export async function GET(request: NextRequest) {
     }));
 
     const weightedMinReviews = 5;
-    const globalRatingValues = cafesWithMetrics
-      .map((cafe) => cafe.averageRating)
-      .filter((value): value is number => value !== null);
-    const globalAverageRating =
-      globalRatingValues.length > 0
-        ? globalRatingValues.reduce((total, value) => total + value, 0) / globalRatingValues.length
-        : 0;
+    const priorRating = 3;
 
     const cafesWithComputedScore = cafesWithMetrics.map((cafe) => {
-      const v = cafe.reviewCount;
-      const r = cafe.averageRating ?? 0;
-      const c = globalAverageRating;
+      const reviewCount = cafe.reviewCount;
+      const averageRating = cafe.averageRating ?? 0;
       const weightedRating =
-        (v / (v + weightedMinReviews)) * r + (weightedMinReviews / (v + weightedMinReviews)) * c;
+        (averageRating * reviewCount + priorRating * weightedMinReviews) /
+        (reviewCount + weightedMinReviews);
 
       return {
         ...cafe,
-        weightedRating: toRoundedNumber(weightedRating),
+        weightedRating: reviewCount === 0 ? null : toRoundedNumber(weightedRating),
       };
     });
 
@@ -149,15 +149,21 @@ export async function GET(request: NextRequest) {
           return rightCafe.reviewCount - leftCafe.reviewCount;
         }
 
-        if (leftCafe.weightedRating !== rightCafe.weightedRating) {
-          return rightCafe.weightedRating - leftCafe.weightedRating;
+        const leftWeighted = leftCafe.weightedRating ?? -1;
+        const rightWeighted = rightCafe.weightedRating ?? -1;
+
+        if (leftWeighted !== rightWeighted) {
+          return rightWeighted - leftWeighted;
         }
 
         return leftCafe.name.localeCompare(rightCafe.name);
       }
 
-      if (leftCafe.weightedRating !== rightCafe.weightedRating) {
-        return rightCafe.weightedRating - leftCafe.weightedRating;
+      const leftWeighted = leftCafe.weightedRating ?? -1;
+      const rightWeighted = rightCafe.weightedRating ?? -1;
+
+      if (leftWeighted !== rightWeighted) {
+        return rightWeighted - leftWeighted;
       }
 
       if (leftCafe.reviewCount !== rightCafe.reviewCount) {

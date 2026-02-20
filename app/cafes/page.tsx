@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Toast from "@/app/components/toast";
+import { formatRatingLabel } from "./rating";
 
 type SortOption = "rating" | "popularity";
 
@@ -18,8 +19,32 @@ type Cafe = {
   createdAt: string;
   averageRating: number | null;
   reviewCount: number;
-  weightedRating: number;
+  weightedRating: number | null;
   isFavorited: boolean;
+};
+
+type CafePreview = {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string;
+  isFavorited: boolean;
+  averageRatings: {
+    reviewCount: number;
+    overallRating: number | null;
+  };
+  reviews: Array<{
+    id: string;
+    tasteRating: number;
+    aestheticRating: number;
+    studyRating: number;
+    textComment: string | null;
+    createdAt: string;
+    user: {
+      name: string | null;
+      email: string;
+    };
+  }>;
 };
 
 type PaginatedCafeResponse = {
@@ -75,10 +100,16 @@ declare global {
   }
 }
 
-const cityOptions = ["All", "LA", "OC", "Bay Area", "Seattle", "NYC"];
+const cityFilterOptions = [
+  { label: "LA", value: "LA" },
+  { label: "OC", value: "OC" },
+  { label: "Bay", value: "Bay Area" },
+  { label: "NYC", value: "NYC" },
+  { label: "Seattle", value: "Seattle" },
+];
 
 const sortOptions: Array<{ value: SortOption; label: string }> = [
-  { value: "rating", label: "Rating" },
+  { value: "rating", label: "Weighted rating" },
   { value: "popularity", label: "Popularity" },
 ];
 
@@ -151,7 +182,7 @@ function CafesPageContent() {
   const selectedCafeIdRef = useRef<string | null>(null);
   const markersRef = useRef<Map<string, MarkerState>>(new Map());
 
-  const [city, setCity] = useState("All");
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("rating");
   const [page, setPage] = useState(1);
@@ -167,6 +198,8 @@ function CafesPageContent() {
     message: string;
     tone: "success" | "error";
   } | null>(null);
+  const [previewCafe, setPreviewCafe] = useState<CafePreview | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [pagination, setPagination] = useState<PaginatedCafeResponse["pagination"]>({
     page: 1,
     pageSize: 6,
@@ -184,16 +217,27 @@ function CafesPageContent() {
     () => cafes.filter((cafe) => cafe.latitude !== null && cafe.longitude !== null),
     [cafes],
   );
+  const allCityValues = useMemo(() => cityFilterOptions.map((option) => option.value), []);
+  const selectedCafe = useMemo(
+    () => cafes.find((cafe) => cafe.id === selectedCafeId) ?? null,
+    [cafes, selectedCafeId],
+  );
 
   useEffect(() => {
     if (!metroFromQuery) {
       return;
     }
 
-    if (cityOptions.includes(metroFromQuery) && metroFromQuery !== city) {
-      setCity(metroFromQuery);
+    if (metroFromQuery === "All") {
+      setSelectedCities([]);
+      return;
     }
-  }, [city, metroFromQuery]);
+
+    const mappedValue = metroFromQuery === "Bay" ? "Bay Area" : metroFromQuery;
+    if (allCityValues.includes(mappedValue)) {
+      setSelectedCities([mappedValue]);
+    }
+  }, [allCityValues, metroFromQuery]);
 
   useEffect(() => {
     async function loadSession() {
@@ -222,7 +266,7 @@ function CafesPageContent() {
 
   useEffect(() => {
     setPage(1);
-  }, [city, normalizedQuery, sort]);
+  }, [selectedCities, normalizedQuery, sort]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -238,8 +282,8 @@ function CafesPageContent() {
           sort,
         });
 
-        if (city !== "All") {
-          params.set("city", city);
+        for (const city of selectedCities) {
+          params.append("city", city);
         }
 
         if (normalizedQuery) {
@@ -281,7 +325,47 @@ function CafesPageContent() {
     return () => {
       controller.abort();
     };
-  }, [city, normalizedQuery, sort, page, listReloadCount]);
+  }, [selectedCities, normalizedQuery, sort, page, listReloadCount]);
+
+  useEffect(() => {
+    if (!selectedCafeId) {
+      setPreviewCafe(null);
+      return;
+    }
+    const currentSelectedCafeId: string = selectedCafeId;
+
+    const controller = new AbortController();
+
+    async function loadPreviewCafe() {
+      try {
+        setIsPreviewLoading(true);
+        const response = await fetch(`/api/cafes/${encodeURIComponent(currentSelectedCafeId)}`, {
+          method: "GET",
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load cafe preview");
+        }
+
+        const payload = (await response.json()) as { cafe: CafePreview };
+        setPreviewCafe(payload.cafe);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setPreviewCafe(null);
+        }
+      } finally {
+        setIsPreviewLoading(false);
+      }
+    }
+
+    loadPreviewCafe();
+
+    return () => {
+      controller.abort();
+    };
+  }, [selectedCafeId]);
 
   useEffect(() => {
     if (cafes.length === 0) {
@@ -440,7 +524,7 @@ function CafesPageContent() {
     }
 
     if (!isMapLoading) {
-      setMapError(cafesWithCoordinates.length === 0 ? "No mapped cafes for this metro." : null);
+      setMapError(cafesWithCoordinates.length === 0 ? "No mapped cafes for selected filters." : null);
     }
   }, [cafesWithCoordinates, isMapLoading]);
 
@@ -513,6 +597,14 @@ function CafesPageContent() {
         message: nextIsFavorited ? "Added to favorites." : "Removed from favorites.",
         tone: "success",
       });
+      setPreviewCafe((currentCafe) =>
+        currentCafe && currentCafe.id === cafeId
+          ? {
+              ...currentCafe,
+              isFavorited: nextIsFavorited,
+            }
+          : currentCafe,
+      );
     } catch (error) {
       setCafes(previousCafes);
       setToastState({
@@ -534,19 +626,28 @@ function CafesPageContent() {
     }
   }
 
+  function handleCityFilterToggle(cityValue: string) {
+    setSelectedCities((currentCities) => {
+      if (currentCities.includes(cityValue)) {
+        return currentCities.filter((currentCity) => currentCity !== cityValue);
+      }
+
+      const nextCities = [...currentCities, cityValue];
+      if (nextCities.length === allCityValues.length) {
+        return [];
+      }
+
+      return nextCities;
+    });
+  }
+
   return (
-    <main className="h-screen flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
+    <main className="h-full min-h-0 flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
       <section className="flex-1 flex min-h-0 flex-col gap-4 lg:flex-row">
         <aside className="w-full overflow-hidden rounded-2xl border border-emerald-100 bg-[#fffdf6] lg:w-[400px] flex flex-col">
           <div className="border-b border-emerald-100 bg-[#f3f1e7] p-4">
             <div className="flex items-center justify-between gap-2">
               <h1 className="text-xl font-semibold text-zinc-900">MatchaDex Cafes</h1>
-              <Link
-                href="/cafes/leaderboard"
-                className="rounded-md border border-emerald-200 bg-[#eef4eb] px-2.5 py-1.5 text-xs text-emerald-900 hover:bg-[#e3ecdf]"
-              >
-                Leaderboard
-              </Link>
             </div>
 
             <div className="mt-3 grid gap-2">
@@ -558,18 +659,37 @@ function CafesPageContent() {
                 className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-100 focus:ring"
               />
 
-              <select
-                aria-label="Filter cafes by metro"
-                value={city}
-                onChange={(event) => setCity(event.target.value)}
-                className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-100 focus:ring"
-              >
-                {cityOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCities([])}
+                  className={`rounded-md border px-3 py-1.5 text-xs ${
+                    selectedCities.length === 0
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                      : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  All
+                </button>
+                {cityFilterOptions.map((option) => {
+                  const isSelected = selectedCities.includes(option.value);
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleCityFilterToggle(option.value)}
+                      className={`rounded-md border px-3 py-1.5 text-xs ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                          : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
 
               <select
                 aria-label="Sort cafe list"
@@ -618,7 +738,7 @@ function CafesPageContent() {
 
             {!isLoading && !listError && cafes.length === 0 ? (
               <div className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
-                No cafes found for this metro or search query.
+                No cafes found for selected filters or search query.
               </div>
             ) : null}
 
@@ -651,7 +771,7 @@ function CafesPageContent() {
                           <p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">{cafe.city}</p>
                         </div>
                         <div className="rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-700">
-                          {`${cafe.weightedRating.toFixed(2)} ⭐ (${cafe.reviewCount} reviews)`}
+                          {`${formatRatingLabel(cafe.weightedRating)} (${cafe.reviewCount} reviews)`}
                         </div>
                       </div>
 
@@ -721,12 +841,92 @@ function CafesPageContent() {
           {mapError ? (
             <div
               className={`absolute left-3 top-3 rounded-lg px-3 py-2 text-xs ${
-                mapError === "No mapped cafes for this metro."
+                mapError === "No mapped cafes for selected filters."
                   ? "border border-zinc-200 bg-white text-zinc-700"
                   : "border border-red-200 bg-red-50 text-red-700"
               }`}
             >
               {mapError}
+            </div>
+          ) : null}
+
+          {selectedCafeId ? (
+            <div className="absolute inset-0 z-20 flex items-end justify-center bg-zinc-950/30 p-3 sm:items-center sm:justify-end sm:p-4">
+              <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-4 shadow-xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">
+                      {previewCafe?.name ?? selectedCafe?.name ?? "Cafe"}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      {previewCafe?.address ?? selectedCafe?.address ?? "Address unavailable"}
+                    </p>
+                    <p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">
+                      {previewCafe?.city ?? selectedCafe?.city ?? ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCafeId(null)}
+                    className="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="mt-3 rounded-lg bg-zinc-100 px-3 py-2 text-xs text-zinc-700">
+                  {isPreviewLoading
+                    ? "Loading preview..."
+                    : `${formatRatingLabel(previewCafe?.averageRatings.overallRating ?? selectedCafe?.weightedRating ?? null)} (${previewCafe?.averageRatings.reviewCount ?? selectedCafe?.reviewCount ?? 0} reviews)`}
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Recent reviews</p>
+                  {isPreviewLoading ? (
+                    <p className="text-xs text-zinc-500">Loading reviews...</p>
+                  ) : previewCafe && previewCafe.reviews.length > 0 ? (
+                    previewCafe.reviews.slice(0, 3).map((review) => (
+                      <article key={review.id} className="rounded-md border border-zinc-200 p-2">
+                        <p className="text-xs font-medium text-zinc-800">
+                          {(review.user.name || review.user.email).toLowerCase()}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-600">
+                          T {review.tasteRating} · A {review.aestheticRating} · S {review.studyRating}
+                        </p>
+                        {review.textComment ? (
+                          <p className="mt-1 line-clamp-2 text-xs text-zinc-700">{review.textComment}</p>
+                        ) : null}
+                      </article>
+                    ))
+                  ) : (
+                    <p className="text-xs text-zinc-500">No reviews yet.</p>
+                  )}
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedCafe) {
+                        handleToggleFavorite(selectedCafe.id, !selectedCafe.isFavorited);
+                      }
+                    }}
+                    className={`rounded-md border px-3 py-1.5 text-xs ${
+                      selectedCafe?.isFavorited
+                        ? "border-amber-300 bg-amber-50 text-amber-700"
+                        : "border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                    }`}
+                  >
+                    {selectedCafe?.isFavorited ? "Favorited" : "Add favorite"}
+                  </button>
+                  <Link
+                    href={`/cafes/${selectedCafeId}`}
+                    className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50"
+                  >
+                    View full page
+                  </Link>
+                </div>
+              </div>
             </div>
           ) : null}
         </section>
@@ -747,7 +947,7 @@ export default function CafesPage() {
   return (
     <Suspense
       fallback={
-        <main className="h-screen flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
+        <main className="h-full min-h-0 flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
           <div className="h-full animate-pulse rounded-2xl border border-zinc-200 bg-white" />
         </main>
       }

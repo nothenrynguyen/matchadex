@@ -24,7 +24,14 @@ export async function GET(
         createdAt: true,
         reviews: {
           orderBy: { updatedAt: "desc" },
-          include: {
+          select: {
+            id: true,
+            cafeId: true,
+            tasteRating: true,
+            aestheticRating: true,
+            studyRating: true,
+            textComment: true,
+            updatedAt: true,
             cafe: {
               select: {
                 id: true,
