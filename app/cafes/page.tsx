@@ -64,6 +64,7 @@ type MapboxMap = {
   flyTo: (options: { center: [number, number]; zoom?: number; essential?: boolean }) => void;
   fitBounds: (bounds: { extend: (point: [number, number]) => unknown }, options?: { padding?: number }) => void;
   on: (eventName: string, callback: () => void) => void;
+  resize: () => void;
   remove: () => void;
 };
 
@@ -401,8 +402,8 @@ function CafesPageContent() {
       return;
     }
 
-    if (!selectedCafeId || !cafes.some((cafe) => cafe.id === selectedCafeId)) {
-      setSelectedCafeId(cafes[0].id);
+    if (selectedCafeId && !cafes.some((cafe) => cafe.id === selectedCafeId)) {
+      setSelectedCafeId(null);
     }
   }, [cafes, selectedCafeId]);
 
@@ -460,6 +461,7 @@ function CafesPageContent() {
 
           mapRef.current.on("load", () => {
             if (!isCancelled) {
+              mapRef.current?.resize();
               setIsMapLoading(false);
             }
           });
@@ -478,6 +480,17 @@ function CafesPageContent() {
       isCancelled = true;
     };
   }, [mapboxPublicToken, mapRetryKey]);
+
+  useEffect(() => {
+    function handleWindowResize() {
+      mapRef.current?.resize();
+    }
+
+    window.addEventListener("resize", handleWindowResize);
+    return () => {
+      window.removeEventListener("resize", handleWindowResize);
+    };
+  }, []);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -711,7 +724,7 @@ function CafesPageContent() {
 
   return (
     <main className="flex h-full min-h-0 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
-      <section className="flex h-full min-h-0 flex-1 overflow-hidden gap-4">
+      <section className="flex min-h-0 flex-1 overflow-hidden gap-4">
         <aside className="flex w-[380px] min-w-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-[#fffdf6]">
           <div className="border-b border-emerald-100 bg-[#f3f1e7] p-4">
             <div className="flex items-center justify-between gap-2">
@@ -778,7 +791,7 @@ function CafesPageContent() {
             Page {pagination.page} of {pagination.totalPages} ({pagination.total} cafes)
           </div>
 
-          <div className="h-full w-full flex-1 overflow-y-auto p-3">
+          <div className="flex-1 min-h-0 w-full overflow-y-auto p-3">
             {isLoading ? (
               <div className="grid gap-3">
                 {Array.from({ length: 6 }).map((_, index) => (
@@ -1043,7 +1056,7 @@ export default function CafesPage() {
     <Suspense
       fallback={
         <main className="flex h-full min-h-0 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
-          <div className="h-full animate-pulse rounded-2xl border border-zinc-200 bg-white" />
+          <div className="min-h-0 flex-1 animate-pulse rounded-2xl border border-zinc-200 bg-white" />
         </main>
       }
     >

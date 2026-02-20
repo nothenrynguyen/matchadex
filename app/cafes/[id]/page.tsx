@@ -92,7 +92,7 @@ function StarRatingInput({
 
 function DetailSkeleton() {
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto h-full w-full max-w-6xl overflow-y-auto px-4 py-10 sm:px-6 lg:px-8">
       <div className="animate-pulse rounded-xl border border-zinc-200 bg-white p-6">
         <div className="h-7 w-64 rounded bg-zinc-200" />
         <div className="mt-3 h-4 w-80 rounded bg-zinc-100" />
@@ -490,7 +490,7 @@ export default function CafeDetailPage() {
 
   if (errorMessage) {
     return (
-      <main className="mx-auto min-h-screen max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto h-full w-full max-w-6xl overflow-y-auto px-4 py-10 sm:px-6 lg:px-8">
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
           {errorMessage}
         </div>
@@ -510,7 +510,7 @@ export default function CafeDetailPage() {
 
   if (!cafe) {
     return (
-      <main className="mx-auto min-h-screen max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto h-full w-full max-w-6xl overflow-y-auto px-4 py-10 sm:px-6 lg:px-8">
         <div className="rounded-xl border border-zinc-200 bg-white p-5 text-sm text-zinc-600">
           Cafe not found.
         </div>
@@ -519,7 +519,7 @@ export default function CafeDetailPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto h-full w-full max-w-6xl overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
       <Link href="/cafes" className="text-sm font-medium text-emerald-700 hover:text-emerald-800">
         Back to cafes
       </Link>
