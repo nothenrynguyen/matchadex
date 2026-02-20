@@ -11,10 +11,10 @@ function toDisplayName(email: string) {
   const firstToken = emailPrefix.split(/[._-]/).find(Boolean) ?? emailPrefix;
 
   if (!firstToken) {
-    return "Friend";
+    return "friend";
   }
 
-  return firstToken.charAt(0).toUpperCase() + firstToken.slice(1).toLowerCase();
+  return firstToken.toLowerCase();
 }
 
 export default function Navbar() {
@@ -72,6 +72,12 @@ export default function Navbar() {
   return (
     <div className="flex items-center gap-3">
       <span className="text-sm text-zinc-600">Hello, {toDisplayName(userEmail)}</span>
+      <Link
+        href="/profile"
+        className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-zinc-700 hover:bg-[#eef4eb]"
+      >
+        Profile
+      </Link>
       <button
         type="button"
         onClick={handleLogout}

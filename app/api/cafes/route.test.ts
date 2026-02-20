@@ -36,7 +36,7 @@ describe("GET /api/cafes", () => {
     getCurrentPrismaUserMock.mockResolvedValue(null);
   });
 
-  it("returns paginated cafes sorted by rating desc", async () => {
+  it("returns paginated cafes sorted by weighted rating", async () => {
     prismaMock.cafe.findMany.mockResolvedValue([
       {
         id: "cafe-1",
@@ -82,19 +82,17 @@ describe("GET /api/cafes", () => {
       },
     ]);
 
-    const request = new NextRequest(
-      "http://localhost:3000/api/cafes?city=LA&page=1&pageSize=2&sort=rating_desc",
-    );
+    const request = new NextRequest("http://localhost:3000/api/cafes?city=LA&page=1&pageSize=2&sort=rating");
 
     const response = await GET(request);
     const payload = (await response.json()) as {
-      cafes: Array<{ id: string; averageRatings: { overallRating: number | null } }>;
+      cafes: Array<{ id: string; weightedRating: number; reviewCount: number }>;
       pagination: { total: number; totalPages: number; page: number };
       sort: string;
     };
 
     expect(response.status).toBe(200);
-    expect(payload.sort).toBe("rating_desc");
+    expect(payload.sort).toBe("rating");
     expect(payload.pagination).toEqual({
       total: 3,
       totalPages: 2,
@@ -105,7 +103,7 @@ describe("GET /api/cafes", () => {
     });
     expect(payload.cafes).toHaveLength(2);
     expect(payload.cafes[0].id).toBe("cafe-1");
-    expect(payload.cafes[1].id).toBe("cafe-2");
+    expect(payload.cafes[1].id).toBe("cafe-3");
   });
 
   it("returns 400 for invalid pagination params", async () => {

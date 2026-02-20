@@ -18,14 +18,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="min-h-screen antialiased flex flex-col">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[90] focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm"
         >
           Skip to main content
         </a>
-        <header className="border-b border-emerald-100 bg-[#f3f1e7]">
+        <header className="border-b border-emerald-100 bg-[#f3f1e7] flex-none">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <Link href="/cafes" className="text-lg font-semibold text-emerald-900">
               MatchaDex
@@ -38,7 +38,7 @@ export default function RootLayout({
             </div>
           </div>
         </header>
-        <main id="main-content" className="min-h-screen">
+        <main id="main-content" className="flex-1 min-h-0">
           {children}
         </main>
         <Footer />

@@ -3,10 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/monitoring";
 import { getCurrentPrismaUser } from "@/lib/auth";
 
-type SortOption = "rating_desc" | "rating_asc" | "name_asc" | "name_desc";
+type SortOption = "rating" | "popularity";
 
 function toAverage(value: number | null) {
   return value === null ? null : Number(value.toFixed(2));
+}
+
+function toRoundedNumber(value: number) {
+  return Number(value.toFixed(2));
 }
 
 function parsePositiveInt(value: string | null, fallbackValue: number) {
@@ -26,24 +30,11 @@ function parsePositiveInt(value: string | null, fallbackValue: number) {
 function parseSort(value: string | null): SortOption {
   const sortOption = value?.toLowerCase();
 
-  if (
-    sortOption === "rating_desc" ||
-    sortOption === "rating_asc" ||
-    sortOption === "name_asc" ||
-    sortOption === "name_desc"
-  ) {
+  if (sortOption === "rating" || sortOption === "popularity") {
     return sortOption;
   }
 
-  return "rating_desc";
-}
-
-function getSortableRating(value: number | null, sortOption: SortOption) {
-  if (value === null) {
-    return sortOption === "rating_asc" ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
-  }
-
-  return value;
+  return "rating";
 }
 
 function toErrorMessage(error: unknown) {
@@ -124,64 +115,83 @@ export async function GET(request: NextRequest) {
           )
         : [];
 
-    const ratingMap = new Map(
-      ratingGroups.map((group) => [
-        group.cafeId,
-        {
-          reviewCount: group._count._all,
-          tasteRating: toAverage(group._avg.tasteRating),
-          aestheticRating: toAverage(group._avg.aestheticRating),
-          studyRating: toAverage(group._avg.studyRating),
-          overallRating:
-            group._avg.tasteRating === null ||
-            group._avg.aestheticRating === null ||
-            group._avg.studyRating === null
-              ? null
-              : toAverage(
-                  (group._avg.tasteRating +
-                    group._avg.aestheticRating +
-                    group._avg.studyRating) /
-                    3,
-                ),
-        },
-      ]),
-    );
+    const ratingMap = new Map<string, { reviewCount: number; averageRating: number | null }>();
 
-    // merge cafe rows with computed rating summary
-    const cafesWithAverages = cafes.map((cafe) => ({
+    for (const group of ratingGroups) {
+      const tasteRating = group._avg.tasteRating;
+      const aestheticRating = group._avg.aestheticRating;
+      const studyRating = group._avg.studyRating;
+
+      const averageRating =
+        tasteRating === null || aestheticRating === null || studyRating === null
+          ? null
+          : toAverage((tasteRating + aestheticRating + studyRating) / 3);
+
+      ratingMap.set(group.cafeId, {
+        reviewCount: group._count._all,
+        averageRating,
+      });
+    }
+
+    const cafesWithMetrics = cafes.map((cafe) => ({
       ...cafe,
-      averageRatings: ratingMap.get(cafe.id) ?? {
+      ...(ratingMap.get(cafe.id) ?? {
         reviewCount: 0,
-        tasteRating: null,
-        aestheticRating: null,
-        studyRating: null,
-        overallRating: null,
-      },
+        averageRating: null,
+      }),
     }));
 
-    // apply sorting rules in memory to allow rating-based ordering
-    cafesWithAverages.sort((leftCafe, rightCafe) => {
-      if (sort === "rating_desc" || sort === "rating_asc") {
-        const leftRating = getSortableRating(leftCafe.averageRatings.overallRating, sort);
-        const rightRating = getSortableRating(rightCafe.averageRatings.overallRating, sort);
+    const weightedMinReviews = 5;
+    const globalRatingValues = cafesWithMetrics
+      .map((cafe) => cafe.averageRating)
+      .filter((value): value is number => value !== null);
+    const globalAverageRating =
+      globalRatingValues.length > 0
+        ? globalRatingValues.reduce((total, value) => total + value, 0) / globalRatingValues.length
+        : 0;
 
-        if (leftRating !== rightRating) {
-          return sort === "rating_desc" ? rightRating - leftRating : leftRating - rightRating;
+    const cafesWithComputedScore = cafesWithMetrics.map((cafe) => {
+      const v = cafe.reviewCount;
+      const r = cafe.averageRating ?? 0;
+      const c = globalAverageRating;
+      const weightedRating =
+        (v / (v + weightedMinReviews)) * r + (weightedMinReviews / (v + weightedMinReviews)) * c;
+
+      return {
+        ...cafe,
+        weightedRating: toRoundedNumber(weightedRating),
+      };
+    });
+
+    cafesWithComputedScore.sort((leftCafe, rightCafe) => {
+      if (sort === "popularity") {
+        if (leftCafe.reviewCount !== rightCafe.reviewCount) {
+          return rightCafe.reviewCount - leftCafe.reviewCount;
         }
+
+        if (leftCafe.weightedRating !== rightCafe.weightedRating) {
+          return rightCafe.weightedRating - leftCafe.weightedRating;
+        }
+
+        return leftCafe.name.localeCompare(rightCafe.name);
       }
 
-      if (sort === "name_desc") {
-        return rightCafe.name.localeCompare(leftCafe.name);
+      if (leftCafe.weightedRating !== rightCafe.weightedRating) {
+        return rightCafe.weightedRating - leftCafe.weightedRating;
+      }
+
+      if (leftCafe.reviewCount !== rightCafe.reviewCount) {
+        return rightCafe.reviewCount - leftCafe.reviewCount;
       }
 
       return leftCafe.name.localeCompare(rightCafe.name);
     });
 
-    const total = cafesWithAverages.length;
+    const total = cafesWithComputedScore.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const safePage = Math.min(page, totalPages);
     const startIndex = (safePage - 1) * pageSize;
-    const pagedCafes = cafesWithAverages.slice(startIndex, startIndex + pageSize);
+    const pagedCafes = cafesWithComputedScore.slice(startIndex, startIndex + pageSize);
 
     const favoriteCafeIds =
       prismaUser && pagedCafes.length > 0

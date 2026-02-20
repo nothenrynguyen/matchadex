@@ -15,6 +15,9 @@ A production-focused cafe discovery app with map-first browsing, reviews, and mo
 - Reviews CRUD
 - Admin delete
 - Auth
+- Weighted rating sort
+- Popularity sort
+- User profile page
 
 ## Authentication
 
@@ -65,7 +68,8 @@ npm run dev
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `ADMIN_EMAILS`
-- `MAPBOX_PUBLIC_TOKEN`
+- `NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN`
+- `GOOGLE_PLACES_API_KEY`
 
 ## Deployment
 
@@ -84,3 +88,11 @@ npm run db:migrate:deploy
 - Seed done
 - `GET /api/health` works
 - `GET /api/test-db` works
+
+## Import Real Cafes
+
+Set Google Places API key and run:
+
+```bash
+GOOGLE_PLACES_API_KEY=your_key_here node scripts/importCafes.ts
+```

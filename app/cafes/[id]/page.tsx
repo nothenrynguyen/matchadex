@@ -90,6 +90,14 @@ export default function CafeDetailPage() {
     textComment: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createReviewFormState, setCreateReviewFormState] = useState<ReviewFormState>({
+    tasteRating: "5",
+    aestheticRating: "5",
+    studyRating: "5",
+    priceEstimate: "",
+    textComment: "",
+  });
+  const [isCreatingReview, setIsCreatingReview] = useState(false);
   const [toastState, setToastState] = useState<{
     message: string;
     tone: "success" | "error";
@@ -109,6 +117,14 @@ export default function CafeDetailPage() {
         .filter((review) => review.user.id === cafe.viewerPrismaUserId)
         .map((review) => review.id),
     );
+  }, [cafe]);
+
+  const hasOwnReview = useMemo(() => {
+    if (!cafe?.viewerPrismaUserId) {
+      return false;
+    }
+
+    return cafe.reviews.some((review) => review.user.id === cafe.viewerPrismaUserId);
   }, [cafe]);
 
   useEffect(() => {
@@ -277,6 +293,59 @@ export default function CafeDetailPage() {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleCreateReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!cafe) {
+      return;
+    }
+
+    try {
+      setIsCreatingReview(true);
+
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cafeId: cafe.id,
+          tasteRating: Number(createReviewFormState.tasteRating),
+          aestheticRating: Number(createReviewFormState.aestheticRating),
+          studyRating: Number(createReviewFormState.studyRating),
+          priceEstimate: createReviewFormState.priceEstimate
+            ? Number(createReviewFormState.priceEstimate)
+            : null,
+          textComment: createReviewFormState.textComment || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(payload?.error ?? "Failed to create review");
+      }
+
+      await refreshCafeDetail();
+      setCreateReviewFormState({
+        tasteRating: "5",
+        aestheticRating: "5",
+        studyRating: "5",
+        priceEstimate: "",
+        textComment: "",
+      });
+      setToastState({ message: "Review created.", tone: "success" });
+    } catch (error) {
+      setToastState({
+        message: error instanceof Error ? error.message : "Failed to create review.",
+        tone: "error",
+      });
+    } finally {
+      setIsCreatingReview(false);
     }
   }
 
@@ -531,6 +600,91 @@ export default function CafeDetailPage() {
       <section className="mt-6">
         <h2 className="text-lg font-semibold text-zinc-900">Recent reviews</h2>
 
+        {cafe.viewerPrismaUserId && !hasOwnReview ? (
+          <form onSubmit={handleCreateReview} className="mt-3 grid gap-3 rounded-xl border border-zinc-200 bg-white p-4">
+            <p className="text-sm font-medium text-zinc-800">Write a review</p>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <input
+                value={createReviewFormState.tasteRating}
+                onChange={(event) =>
+                  setCreateReviewFormState((currentState) => ({
+                    ...currentState,
+                    tasteRating: event.target.value,
+                  }))
+                }
+                type="number"
+                min={1}
+                max={5}
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+                required
+              />
+              <input
+                value={createReviewFormState.aestheticRating}
+                onChange={(event) =>
+                  setCreateReviewFormState((currentState) => ({
+                    ...currentState,
+                    aestheticRating: event.target.value,
+                  }))
+                }
+                type="number"
+                min={1}
+                max={5}
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+                required
+              />
+              <input
+                value={createReviewFormState.studyRating}
+                onChange={(event) =>
+                  setCreateReviewFormState((currentState) => ({
+                    ...currentState,
+                    studyRating: event.target.value,
+                  }))
+                }
+                type="number"
+                min={1}
+                max={5}
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+                required
+              />
+              <input
+                value={createReviewFormState.priceEstimate}
+                onChange={(event) =>
+                  setCreateReviewFormState((currentState) => ({
+                    ...currentState,
+                    priceEstimate: event.target.value,
+                  }))
+                }
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="Price"
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <textarea
+              value={createReviewFormState.textComment}
+              onChange={(event) =>
+                setCreateReviewFormState((currentState) => ({
+                  ...currentState,
+                  textComment: event.target.value,
+                }))
+              }
+              maxLength={500}
+              className="min-h-20 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              placeholder="Comment"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={isCreatingReview}
+                className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+              >
+                {isCreatingReview ? "Saving..." : "Create review"}
+              </button>
+            </div>
+          </form>
+        ) : null}
+
         {cafe.reviews.length === 0 ? (
           <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
             No reviews yet.
@@ -542,7 +696,7 @@ export default function CafeDetailPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-zinc-800">
-                      {review.user.name || review.user.email}
+                      {(review.user.name || review.user.email).toLowerCase()}
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">
                       {new Date(review.createdAt).toLocaleDateString()}

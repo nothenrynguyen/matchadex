@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Toast from "@/app/components/toast";
 
-type SortOption = "rating_desc" | "rating_asc" | "name_asc" | "name_desc";
+type SortOption = "rating" | "popularity";
 
 type Cafe = {
   id: string;
@@ -16,13 +16,9 @@ type Cafe = {
   latitude: number | null;
   longitude: number | null;
   createdAt: string;
-  averageRatings: {
-    reviewCount: number;
-    tasteRating: number | null;
-    aestheticRating: number | null;
-    studyRating: number | null;
-    overallRating: number | null;
-  };
+  averageRating: number | null;
+  reviewCount: number;
+  weightedRating: number;
   isFavorited: boolean;
 };
 
@@ -82,15 +78,9 @@ declare global {
 const cityOptions = ["All", "LA", "OC", "Bay Area", "Seattle", "NYC"];
 
 const sortOptions: Array<{ value: SortOption; label: string }> = [
-  { value: "rating_desc", label: "Rating: High to low" },
-  { value: "rating_asc", label: "Rating: Low to high" },
-  { value: "name_asc", label: "Name: A to Z" },
-  { value: "name_desc", label: "Name: Z to A" },
+  { value: "rating", label: "Rating" },
+  { value: "popularity", label: "Popularity" },
 ];
-
-function ratingText(value: number | null) {
-  return value === null ? "N/A" : value.toFixed(1);
-}
 
 function setMarkerActiveStyle(markerElement: HTMLButtonElement, isActive: boolean) {
   markerElement.style.width = isActive ? "16px" : "12px";
@@ -163,7 +153,7 @@ function CafesPageContent() {
 
   const [city, setCity] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sort, setSort] = useState<SortOption>("rating_desc");
+  const [sort, setSort] = useState<SortOption>("rating");
   const [page, setPage] = useState(1);
   const [cafes, setCafes] = useState<Cafe[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -545,9 +535,9 @@ function CafesPageContent() {
   }
 
   return (
-    <main className="mx-auto max-w-[1500px] overflow-hidden px-4 py-4 sm:px-6 lg:h-[calc(100vh-9.5rem)] lg:px-8">
-      <section className="grid gap-4 lg:h-full lg:grid-cols-10">
-        <aside className="flex h-[55vh] flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-[#fffdf6] lg:col-span-3 lg:h-full">
+    <main className="h-screen flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
+      <section className="flex-1 flex min-h-0 flex-col gap-4 lg:flex-row">
+        <aside className="w-full overflow-hidden rounded-2xl border border-emerald-100 bg-[#fffdf6] lg:w-[400px] flex flex-col">
           <div className="border-b border-emerald-100 bg-[#f3f1e7] p-4">
             <div className="flex items-center justify-between gap-2">
               <h1 className="text-xl font-semibold text-zinc-900">MatchaDex Cafes</h1>
@@ -600,7 +590,7 @@ function CafesPageContent() {
             Page {pagination.page} of {pagination.totalPages} ({pagination.total} cafes)
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3">
+          <div className="w-full overflow-y-auto p-3 flex-1">
             {isLoading ? (
               <div className="grid gap-3">
                 {Array.from({ length: 6 }).map((_, index) => (
@@ -661,7 +651,7 @@ function CafesPageContent() {
                           <p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">{cafe.city}</p>
                         </div>
                         <div className="rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-700">
-                          {ratingText(cafe.averageRatings.overallRating)}
+                          {`${cafe.weightedRating.toFixed(2)} ⭐ (${cafe.reviewCount} reviews)`}
                         </div>
                       </div>
 
@@ -715,7 +705,7 @@ function CafesPageContent() {
           </div>
         </aside>
 
-        <section className="relative h-[45vh] overflow-hidden rounded-2xl border border-emerald-100 bg-white lg:col-span-7 lg:h-full">
+        <section className="relative flex-1 h-full overflow-hidden rounded-2xl border border-emerald-100 bg-white">
           <div ref={mapContainerRef} className="h-full w-full" />
 
           {isMapLoading ? (
@@ -757,7 +747,7 @@ export default function CafesPage() {
   return (
     <Suspense
       fallback={
-        <main className="mx-auto h-[calc(100vh-9.5rem)] max-w-[1500px] px-4 py-4 sm:px-6 lg:px-8">
+        <main className="h-screen flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
           <div className="h-full animate-pulse rounded-2xl border border-zinc-200 bg-white" />
         </main>
       }
