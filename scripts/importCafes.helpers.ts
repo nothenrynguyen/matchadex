@@ -11,6 +11,18 @@ export type ManualCafeRecord = {
   city: string;
 };
 
+export const BANNED_CAFE_WORDS = [
+  "7-eleven",
+  "barnes",
+  "target",
+  "hotel",
+  "gas",
+  "market",
+  "station",
+];
+
+export const SUPPORTED_CITY_LABELS = ["LA", "OC", "Bay", "NYC", "Seattle"] as const;
+
 function normalize(value: string) {
   return value.trim().toLowerCase();
 }
@@ -47,4 +59,52 @@ export function findExistingCafeForManualImport(
     ) ??
     null
   );
+}
+
+export function inferCityLabelFromText(query: string, address: string | null) {
+  const haystack = `${query} ${address ?? ""}`.toLowerCase();
+
+  if (haystack.includes("seattle") || haystack.includes("wa ")) {
+    return "Seattle";
+  }
+
+  if (
+    haystack.includes("new york") ||
+    haystack.includes("nyc") ||
+    haystack.includes(" manhattan") ||
+    haystack.includes(", ny")
+  ) {
+    return "NYC";
+  }
+
+  if (
+    haystack.includes("san francisco") ||
+    haystack.includes("oakland") ||
+    haystack.includes("berkeley") ||
+    haystack.includes("san jose") ||
+    haystack.includes("bay area")
+  ) {
+    return "Bay";
+  }
+
+  if (
+    haystack.includes("orange county") ||
+    haystack.includes("irvine") ||
+    haystack.includes("anaheim") ||
+    haystack.includes("newport beach") ||
+    haystack.includes("costa mesa")
+  ) {
+    return "OC";
+  }
+
+  if (
+    haystack.includes("los angeles") ||
+    haystack.includes("la ") ||
+    haystack.includes("west hollywood") ||
+    haystack.includes("pasadena")
+  ) {
+    return "LA";
+  }
+
+  return null;
 }

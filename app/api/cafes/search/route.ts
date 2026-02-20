@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
     // search cafe names case-insensitively with optional city filter
     const cafes = await prisma.cafe.findMany({
       where: {
+        isHidden: false,
         name: {
           contains: queryParam,
           mode: "insensitive",

@@ -3,10 +3,6 @@ import { redirect } from "next/navigation";
 import { getCurrentPrismaUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-function toAverage(value: number) {
-  return Number(value.toFixed(2));
-}
-
 export default async function ProfilePage() {
   const currentUser = await getCurrentPrismaUser();
 
@@ -50,16 +46,6 @@ export default async function ProfilePage() {
     }),
   ]);
 
-  const totalTaste = reviews.reduce((total, review) => total + review.tasteRating, 0);
-  const totalAesthetic = reviews.reduce((total, review) => total + review.aestheticRating, 0);
-  const totalStudy = reviews.reduce((total, review) => total + review.studyRating, 0);
-  const averageTaste = reviews.length > 0 ? toAverage(totalTaste / reviews.length) : null;
-  const averageAesthetic = reviews.length > 0 ? toAverage(totalAesthetic / reviews.length) : null;
-  const averageStudy = reviews.length > 0 ? toAverage(totalStudy / reviews.length) : null;
-  const averageOverall =
-    averageTaste === null || averageAesthetic === null || averageStudy === null
-      ? null
-      : toAverage((averageTaste + averageAesthetic + averageStudy) / 3);
   const reviewedCafes = Array.from(
     new Map(
       reviews.map((review) => [
@@ -82,28 +68,6 @@ export default async function ProfilePage() {
         <p className="mt-4 text-sm text-zinc-700">
           {reviews.length} reviews written
         </p>
-      </section>
-
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6">
-        <h2 className="text-lg font-semibold text-zinc-900">Average ratings given</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-lg bg-[#eef4eb] p-3 text-sm text-zinc-700">
-            <p className="text-xs text-zinc-500">Overall</p>
-            <p className="text-lg font-semibold">{averageOverall ?? "N/A"}</p>
-          </div>
-          <div className="rounded-lg bg-[#eef4eb] p-3 text-sm text-zinc-700">
-            <p className="text-xs text-zinc-500">Taste</p>
-            <p className="text-lg font-semibold">{averageTaste ?? "N/A"}</p>
-          </div>
-          <div className="rounded-lg bg-[#eef4eb] p-3 text-sm text-zinc-700">
-            <p className="text-xs text-zinc-500">Aesthetic</p>
-            <p className="text-lg font-semibold">{averageAesthetic ?? "N/A"}</p>
-          </div>
-          <div className="rounded-lg bg-[#eef4eb] p-3 text-sm text-zinc-700">
-            <p className="text-xs text-zinc-500">Study</p>
-            <p className="text-lg font-semibold">{averageStudy ?? "N/A"}</p>
-          </div>
-        </div>
       </section>
 
       <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6">

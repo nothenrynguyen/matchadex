@@ -4,6 +4,10 @@ vi.mock("@/lib/auth", () => ({
   getCurrentPrismaUser: vi.fn(),
 }));
 
+vi.mock("@/lib/admin", () => ({
+  isCurrentUserAdmin: vi.fn(),
+}));
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     cafe: {
@@ -19,6 +23,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { isCurrentUserAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { GET } from "./route";
 
@@ -28,11 +33,13 @@ const prismaMock = prisma as unknown as {
   favorite: { findUnique: ReturnType<typeof vi.fn> };
 };
 const getCurrentPrismaUserMock = getCurrentPrismaUser as ReturnType<typeof vi.fn>;
+const isCurrentUserAdminMock = isCurrentUserAdmin as ReturnType<typeof vi.fn>;
 
 describe("GET /api/cafes/[id]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getCurrentPrismaUserMock.mockResolvedValue(null);
+    isCurrentUserAdminMock.mockResolvedValue(false);
     prismaMock.favorite.findUnique.mockResolvedValue(null);
   });
 
@@ -78,5 +85,19 @@ describe("GET /api/cafes/[id]", () => {
     expect(payload.cafe.averageRatings.aestheticRating).toBeNull();
     expect(payload.cafe.averageRatings.studyRating).toBeNull();
     expect(payload.cafe.averageRatings.overallRating).toBeNull();
+  });
+
+  it("returns 404 for hidden cafes when requester is not admin", async () => {
+    prismaMock.cafe.findUnique.mockResolvedValue({
+      id: "cafe-hidden",
+      isHidden: true,
+      reviews: [],
+    });
+
+    const response = await GET(new Request("http://localhost:3000/api/cafes/cafe-hidden"), {
+      params: Promise.resolve({ id: "cafe-hidden" }),
+    });
+
+    expect(response.status).toBe(404);
   });
 });

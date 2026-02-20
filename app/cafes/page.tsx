@@ -103,7 +103,7 @@ declare global {
 const cityFilterOptions = [
   { label: "LA", value: "LA" },
   { label: "OC", value: "OC" },
-  { label: "Bay", value: "Bay Area" },
+  { label: "Bay", value: "Bay" },
   { label: "NYC", value: "NYC" },
   { label: "Seattle", value: "Seattle" },
 ];
@@ -191,6 +191,7 @@ function CafesPageContent() {
   const [listError, setListError] = useState<string | null>(null);
   const [isMapLoading, setIsMapLoading] = useState(true);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [mapRetryKey, setMapRetryKey] = useState(0);
   const [selectedCafeId, setSelectedCafeId] = useState<string | null>(null);
   const [listReloadCount, setListReloadCount] = useState(0);
   const [sessionUserEmail, setSessionUserEmail] = useState<string | null>(null);
@@ -211,7 +212,8 @@ function CafesPageContent() {
 
   const normalizedQuery = useMemo(() => searchQuery.trim(), [searchQuery]);
   const metroFromQuery = searchParams.get("metro");
-  const mapboxPublicToken = process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN;
+  const mapboxPublicToken =
+    process.env.NEXT_PUBLIC_MAPBOX_PUBLIC_TOKEN ?? process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
   const cafesWithCoordinates = useMemo(
     () => cafes.filter((cafe) => cafe.latitude !== null && cafe.longitude !== null),
@@ -224,6 +226,12 @@ function CafesPageContent() {
   );
 
   useEffect(() => {
+    const tokenLength = mapboxPublicToken?.length ?? 0;
+    // Runtime observability only; do not print token value.
+    console.info(`[cafes-map] mapbox token present=${tokenLength > 0} length=${tokenLength}`);
+  }, [mapboxPublicToken]);
+
+  useEffect(() => {
     if (!metroFromQuery) {
       return;
     }
@@ -233,7 +241,7 @@ function CafesPageContent() {
       return;
     }
 
-    const mappedValue = metroFromQuery === "Bay" ? "Bay Area" : metroFromQuery;
+    const mappedValue = metroFromQuery === "Bay Area" ? "Bay" : metroFromQuery;
     if (allCityValues.includes(mappedValue)) {
       setSelectedCities([mappedValue]);
     }
@@ -401,7 +409,7 @@ function CafesPageContent() {
       }
 
       if (!mapboxPublicToken) {
-        setMapError("Missing MAPBOX_PUBLIC_TOKEN.");
+        setMapError("Map failed to load: missing Mapbox token.");
         setIsMapLoading(false);
         return;
       }
@@ -414,6 +422,11 @@ function CafesPageContent() {
 
         if (!mapbox || isCancelled) {
           return;
+        }
+
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
         }
 
         if (!mapRef.current) {
@@ -433,7 +446,7 @@ function CafesPageContent() {
         }
       } catch (error) {
         if (!isCancelled) {
-          setMapError(error instanceof Error ? error.message : "Failed to load map");
+          setMapError(`Map failed to load: ${error instanceof Error ? error.message : "unknown error"}`);
           setIsMapLoading(false);
         }
       }
@@ -444,7 +457,7 @@ function CafesPageContent() {
     return () => {
       isCancelled = true;
     };
-  }, [mapboxPublicToken]);
+  }, [mapboxPublicToken, mapRetryKey]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -826,7 +839,7 @@ function CafesPageContent() {
         </aside>
 
         <section className="relative flex-1 h-full overflow-hidden rounded-2xl border border-emerald-100 bg-white">
-          <div ref={mapContainerRef} className="h-full w-full" />
+          <div ref={mapContainerRef} className="h-full min-h-[360px] w-full" />
 
           {isMapLoading ? (
             <div className="absolute inset-0 grid place-items-center bg-[#f8f6ee]/95">
@@ -846,7 +859,16 @@ function CafesPageContent() {
                   : "border border-red-200 bg-red-50 text-red-700"
               }`}
             >
-              {mapError}
+              <p>{mapError}</p>
+              {mapError !== "No mapped cafes for selected filters." ? (
+                <button
+                  type="button"
+                  onClick={() => setMapRetryKey((currentKey) => currentKey + 1)}
+                  className="mt-2 rounded-md border border-red-300 bg-white px-2 py-1 text-[11px] text-red-700 hover:bg-red-50"
+                >
+                  Retry
+                </button>
+              ) : null}
             </div>
           ) : null}
 

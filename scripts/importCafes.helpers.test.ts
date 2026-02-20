@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  BANNED_CAFE_WORDS,
   findExistingCafeForManualImport,
   getMatchingBannedWord,
+  inferCityLabelFromText,
   isCafeOrCoffeeType,
 } from "./importCafes.helpers";
 
@@ -43,8 +45,13 @@ describe("importCafes helpers", () => {
   });
 
   it("detects banned words including station", () => {
-    const banned = ["7-eleven", "station"];
-    expect(getMatchingBannedWord("Union Station Cafe", null, banned)).toBe("station");
-    expect(getMatchingBannedWord("Normal Cafe", null, banned)).toBeNull();
+    expect(getMatchingBannedWord("Union Station Cafe", null, BANNED_CAFE_WORDS)).toBe("station");
+    expect(getMatchingBannedWord("Normal Cafe", null, BANNED_CAFE_WORDS)).toBeNull();
+  });
+
+  it("infers city label from query or address", () => {
+    expect(inferCityLabelFromText("Kodo Cafe LA", null)).toBe("LA");
+    expect(inferCityLabelFromText("Cafe", "123 Main St, Seattle, WA")).toBe("Seattle");
+    expect(inferCityLabelFromText("Cafe", "San Francisco, CA")).toBe("Bay");
   });
 });

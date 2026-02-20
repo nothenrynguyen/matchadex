@@ -1,0 +1,5 @@
+# Add one cafe search query per line.
+# Empty lines and lines starting with # are ignored.
+# Examples:
+# Kodo Cafe LA
+# Cha Cha Matcha NYC

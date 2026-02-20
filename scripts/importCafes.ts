@@ -3,6 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import manualCafes from "./manualCafes.json";
 import {
+  BANNED_CAFE_WORDS,
   findExistingCafeForManualImport,
   getMatchingBannedWord,
   isCafeOrCoffeeType,
@@ -33,7 +34,6 @@ const citySearchTargets = [
 ];
 
 const googlePlacesKeyword = "matcha OR coffee shop OR cafe";
-const bannedWords = ["7-eleven", "barnes", "target", "hotel", "gas", "market", "station"];
 const maxCityImportCount = 100;
 
 type NearbySearchResult = {
@@ -174,7 +174,7 @@ async function importForCity(target: (typeof citySearchTargets)[number]) {
         continue;
       }
 
-      const bannedWord = getMatchingBannedWord(name, address, bannedWords);
+      const bannedWord = getMatchingBannedWord(name, address, BANNED_CAFE_WORDS);
       if (bannedWord && !isManualCafe) {
         skippedCount += 1;
         console.log(

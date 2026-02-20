@@ -94,12 +94,14 @@ export async function GET(request: NextRequest) {
       "cafe.findMany",
       () =>
         prisma.cafe.findMany({
-          where:
-            cityFilters.length > 0
+          where: {
+            isHidden: false,
+            ...(cityFilters.length > 0
               ? {
                   city: { in: cityFilters },
                 }
-              : undefined,
+              : {}),
+          },
         }),
       { cityFilters },
     );

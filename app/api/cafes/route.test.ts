@@ -143,6 +143,7 @@ describe("GET /api/cafes", () => {
     expect(response.status).toBe(200);
     expect(prismaMock.cafe.findMany).toHaveBeenCalledWith({
       where: {
+        isHidden: false,
         city: {
           in: ["LA", "OC"],
         },

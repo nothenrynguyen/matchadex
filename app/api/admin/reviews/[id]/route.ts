@@ -4,13 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logError, logInfo } from "@/lib/monitoring";
 import { getCurrentAuthUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
-
-function getAdminEmails() {
-  return (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-}
+import { getAdminEmails, isAdminEmail } from "@/lib/admin";
 
 export async function DELETE(
   request: NextRequest,
@@ -50,7 +44,7 @@ export async function DELETE(
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    if (!adminEmails.includes(requesterEmail)) {
+    if (!isAdminEmail(requesterEmail)) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 

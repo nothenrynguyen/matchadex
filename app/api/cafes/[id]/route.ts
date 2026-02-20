@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/monitoring";
 import { getCurrentPrismaUser } from "@/lib/auth";
+import { isCurrentUserAdmin } from "@/lib/admin";
 
 function toAverage(value: number | null) {
   return value === null ? null : Number(value.toFixed(2));
@@ -12,6 +13,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const isAdmin = await isCurrentUserAdmin();
     const prismaUser = await getCurrentPrismaUser();
     const { id } = await context.params;
     const cafeId = id?.trim();
@@ -48,6 +50,10 @@ export async function GET(
     });
 
     if (!cafe) {
+      return NextResponse.json({ error: "cafe not found" }, { status: 404 });
+    }
+
+    if (cafe.isHidden && !isAdmin) {
       return NextResponse.json({ error: "cafe not found" }, { status: 404 });
     }
 

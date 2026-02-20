@@ -20,6 +20,7 @@ model Cafe {
   name          String
   address       String?
   city          String
+  isHidden      Boolean    @default(false)
   createdAt     DateTime   @default(now())
   googlePlaceId String     @unique
   latitude      Float?
