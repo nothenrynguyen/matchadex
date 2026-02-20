@@ -43,7 +43,9 @@ export default function RootLayout({
         <main id="main-content" className="flex-1 min-h-0">
           {children}
         </main>
-        <Footer />
+        <footer className="flex-none">
+          <Footer />
+        </footer>
       </body>
     </html>
   );
