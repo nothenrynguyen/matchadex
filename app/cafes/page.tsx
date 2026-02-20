@@ -907,7 +907,9 @@ function CafesPageContent() {
         </aside>
 
         <section className="relative flex h-full max-h-full min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl border border-emerald-100 bg-white">
-          <div ref={mapContainerRef} className="h-full w-full" />
+          <div className="h-full w-full pointer-events-none">
+            <div ref={mapContainerRef} className="h-full w-full pointer-events-auto" />
+          </div>
 
           {isMapLoading ? (
             <div className="absolute inset-0 grid place-items-center bg-[#f8f6ee]/95">
@@ -942,7 +944,7 @@ function CafesPageContent() {
 
           {selectedCafeId ? (
             <div
-              className="absolute inset-0 z-20 flex items-end justify-center bg-zinc-950/30 p-3 sm:items-center sm:justify-end sm:p-4"
+              className="absolute inset-0 z-50 flex items-end justify-center bg-zinc-950/30 pointer-events-auto"
               onClick={() => setSelectedCafeId(null)}
             >
               <div
