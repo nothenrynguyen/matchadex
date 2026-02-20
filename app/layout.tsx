@@ -6,7 +6,14 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "MatchaDex",
-  description: "Discover and review matcha cafes",
+  description: "Find the best matcha cafes near you.",
+  openGraph: {
+    images: ["/preview.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/preview.png"],
+  },
 };
 
 export default function RootLayout({

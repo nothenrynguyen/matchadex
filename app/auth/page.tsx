@@ -67,6 +67,9 @@ export default function AuthPage() {
       <section className="w-full rounded-xl border border-zinc-200 bg-white p-6">
         <h1 className="text-2xl font-semibold text-zinc-900">Login</h1>
         <p className="mt-2 text-sm text-zinc-600">Continue with Google to access MatchaDex.</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          This sign-in is only used to verify real users and store reviews. Emails are never public.
+        </p>
         <p className="mt-1 text-xs text-zinc-500">Contact via GitHub Issues or MatchaDex support.</p>
 
         {errorMessage ? (
